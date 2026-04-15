@@ -9,7 +9,7 @@
   "main": "dist-electron/main.js",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -p tsconfig.json && vite build",
+    "build": "npx tsc -p tsconfig.json && vite build",
     "dist": "npm run build && electron-builder --win portable",
     "release": "node release-tools/release.mjs"
   },
