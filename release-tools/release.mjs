@@ -93,8 +93,16 @@ async function main() {
 
     // Step 2: Git commit and push
     if (!run('git add -A', 'Step 1: Adding changes')) process.exit(1);
-    if (!run(`git commit -m "${commitMessage}"`, 'Step 2: Committing changes'))
-      process.exit(1);
+
+    const status = execSync('git status --porcelain', { encoding: 'utf-8' }).trim();
+    if (status) {
+      if (!run(`git commit -m "${commitMessage}"`, 'Step 2: Committing changes'))
+        process.exit(1);
+    } else {
+      console.log('\n▶ Step 2: Committing changes');
+      console.log('  (nothing to commit, skipping)');
+    }
+
     if (!run('git push', 'Step 3: Pushing to GitHub')) process.exit(1);
 
     // Step 3: Build
