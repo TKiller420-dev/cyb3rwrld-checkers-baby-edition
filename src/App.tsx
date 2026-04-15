@@ -7,6 +7,19 @@ import { CheckersScene } from './game/CheckersScene';
 const DEFAULT_SERVER_URL = 'https://217-216-40-246.sslip.io/checkers';
 const SERVER_URL = import.meta.env.VITE_SERVER_URL?.trim() || DEFAULT_SERVER_URL;
 
+function getSocketConnectionConfig(rawUrl: string) {
+  try {
+    const parsed = new URL(rawUrl);
+    const origin = `${parsed.protocol}//${parsed.host}`;
+    const basePath = parsed.pathname.replace(/\/+$/, '');
+    const rawPath = basePath && basePath !== '/' ? `${basePath}/socket.io` : '/socket.io';
+    const path = rawPath.endsWith('/') ? rawPath : `${rawPath}/`;
+    return { origin, path };
+  } catch {
+    return { origin: rawUrl, path: '/socket.io/' };
+  }
+}
+
 type JoinPayload = {
   snapshot: RoomSnapshot;
   yourColor: Color;
@@ -92,10 +105,11 @@ export default function App() {
       setMessage('Signal lost. The den link dropped.');
     });
 
-    socket.on('connect_error', () => {
+    socket.on('connect_error', (error) => {
       setIsConnected(false);
       setIsConnecting(false);
-      setMessage('Unable to reach the den network. Check that the VPS server is running and port 4000 is open.');
+      const { origin, path } = getSocketConnectionConfig(SERVER_URL);
+      setMessage(`Unable to reach den network at ${origin}${path} (${error.message}).`);
     });
 
     socket.on('server:error', ({ message: errorMessage }: { message: string }) => {
@@ -154,8 +168,11 @@ export default function App() {
     setIsConnected(false);
     setMessage('Connecting to the den network...');
 
-    const socket = io(SERVER_URL, {
-      autoConnect: true
+    const { origin, path } = getSocketConnectionConfig(SERVER_URL);
+
+    const socket = io(origin, {
+      autoConnect: true,
+      path
     });
 
     socketRef.current = socket;
