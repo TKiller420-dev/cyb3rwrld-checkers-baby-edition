@@ -71,9 +71,9 @@ function BoardScene({ state, localColor, selected, legalMoves, onSquareClick }: 
                   <mesh castShadow>
                     <cylinderGeometry args={[0.34, 0.4, 0.22, 40]} />
                     <meshStandardMaterial
-                      color={piece.color === 'red' ? '#8b5cf6' : '#2f7bff'}
-                      emissive={piece.color === 'red' ? '#5c24ff' : '#00b7ff'}
-                      emissiveIntensity={0.35}
+                      color={piece.color === 'red' ? '#6b4d8a' : '#2a5a7a'}
+                      emissive={piece.color === 'red' ? '#4a3a6a' : '#1a3a5a'}
+                      emissiveIntensity={0.18}
                       roughness={0.22}
                       metalness={0.55}
                     />
