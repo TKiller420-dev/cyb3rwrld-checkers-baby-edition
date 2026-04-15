@@ -229,88 +229,90 @@ export default function App() {
 
   return (
     <div className="app-shell">
-      <aside className="control-panel">
-        <div className="title-block">
-          <h1>Cyb3rWrld Checkers (Baby edition)</h1>
-          <div className="fox-mark" aria-hidden="true">
-            <span className="fox-ear fox-ear-left" />
-            <span className="fox-ear fox-ear-right" />
-            <span className="fox-face" />
-          </div>
+          <aside className="control-panel">
+            <div className="title-block">
+              <h1>Cyb3rWrld Checkers (Baby edition)</h1>
+              <div className="fox-mark" aria-hidden="true">
+                <span className="fox-ear fox-ear-left" />
+                <span className="fox-ear fox-ear-right" />
+                <span className="fox-face" />
+              </div>
+            </div>
+
+            <div className="card form-card">
+              <label>
+                <span>Tag</span>
+                <input value={playerName} onChange={(event) => setPlayerName(event.target.value)} maxLength={24} />
+              </label>
+
+              <label>
+                <span>Den code</span>
+                <input value={roomCodeInput} onChange={(event) => setRoomCodeInput(event.target.value.toUpperCase())} maxLength={5} placeholder="ABCDE" />
+              </label>
+
+              <div className="button-row">
+                <button type="button" onClick={handleCreateRoom} disabled={!canInteractWithServer}>Open den</button>
+                <button type="button" className="secondary" onClick={handleJoinRoom} disabled={!canInteractWithServer}>Enter den</button>
+              </div>
+            </div>
+
+            <div className="card status-card">
+              <div>
+                <span className="label">Side</span>
+                <strong>{getColorLabel(playerColor)}</strong>
+              </div>
+              <div>
+                <span className="label">Den</span>
+                <strong>{room?.roomCode ?? 'not connected'}</strong>
+              </div>
+              <div>
+                <span className="label">Violet</span>
+                <strong>{room?.players.red ?? 'Open seat'}</strong>
+              </div>
+              <div>
+                <span className="label">Azure</span>
+                <strong>{room?.players.black ?? 'Open seat'}</strong>
+              </div>
+              <div>
+                <span className="label">Turn</span>
+                <strong>{room?.state.winner ? 'Game over' : room ? getColorLabel(room.state.turn) : 'n/a'}</strong>
+              </div>
+              <div>
+                <span className="label">Chain hunt</span>
+                <strong>{room?.state.mustContinueFrom ? 'Active' : 'None'}</strong>
+              </div>
+            </div>
+
+            <div className="card message-card">
+              <p>{message}</p>
+            </div>
+
+            <div className="button-row wide">
+              <button type="button" className="secondary" onClick={handleLeaveRoom} disabled={!room}>Leave den</button>
+              <button type="button" onClick={handleRestart} disabled={!room}>Reset board</button>
+            </div>
+
+
+          </aside>
+
+          <main className="board-panel">
+            <header className="board-header">
+              <div>
+                <h2>{isMyTurn ? 'Make your run' : room?.state.winner ? 'Grid locked' : 'Track the turn'}</h2>
+              </div>
+              <p className="hint">Forced captures stay on. Pick a piece, then strike on a highlighted square.</p>
+            </header>
+
+            <div className="board-frame">
+              <CheckersScene
+                state={room?.state ?? null}
+                localColor={playerColor}
+                selected={selected}
+                legalMoves={legalMoves}
+                onSquareClick={handleSquareClick}
+              />
+            </div>
+          </main>
         </div>
-
-        <div className="card form-card">
-          <label>
-            <span>Tag</span>
-            <input value={playerName} onChange={(event) => setPlayerName(event.target.value)} maxLength={24} />
-          </label>
-
-          <label>
-            <span>Den code</span>
-            <input value={roomCodeInput} onChange={(event) => setRoomCodeInput(event.target.value.toUpperCase())} maxLength={5} placeholder="ABCDE" />
-          </label>
-
-          <div className="button-row">
-            <button type="button" onClick={handleCreateRoom} disabled={!canInteractWithServer}>Open den</button>
-            <button type="button" className="secondary" onClick={handleJoinRoom} disabled={!canInteractWithServer}>Enter den</button>
-          </div>
-        </div>
-
-        <div className="card status-card">
-          <div>
-            <span className="label">Side</span>
-            <strong>{getColorLabel(playerColor)}</strong>
-          </div>
-          <div>
-            <span className="label">Den</span>
-            <strong>{room?.roomCode ?? 'not connected'}</strong>
-          </div>
-          <div>
-            <span className="label">Violet</span>
-            <strong>{room?.players.red ?? 'Open seat'}</strong>
-          </div>
-          <div>
-            <span className="label">Azure</span>
-            <strong>{room?.players.black ?? 'Open seat'}</strong>
-          </div>
-          <div>
-            <span className="label">Turn</span>
-            <strong>{room?.state.winner ? 'Game over' : room ? getColorLabel(room.state.turn) : 'n/a'}</strong>
-          </div>
-          <div>
-            <span className="label">Chain hunt</span>
-            <strong>{room?.state.mustContinueFrom ? 'Active' : 'None'}</strong>
-          </div>
-        </div>
-
-        <div className="card message-card">
-          <p>{message}</p>
-        </div>
-
-        <div className="button-row wide">
-          <button type="button" className="secondary" onClick={handleLeaveRoom} disabled={!room}>Leave den</button>
-          <button type="button" onClick={handleRestart} disabled={!room}>Reset board</button>
-        </div>
-      </aside>
-
-      <main className="board-panel">
-        <header className="board-header">
-          <div>
-            <h2>{isMyTurn ? 'Make your run' : room?.state.winner ? 'Grid locked' : 'Track the turn'}</h2>
-          </div>
-          <p className="hint">Forced captures stay on. Pick a piece, then strike on a highlighted square.</p>
-        </header>
-
-        <div className="board-frame">
-          <CheckersScene
-            state={room?.state ?? null}
-            localColor={playerColor}
-            selected={selected}
-            legalMoves={legalMoves}
-            onSquareClick={handleSquareClick}
-          />
-        </div>
-      </main>
-    </div>
   );
 }

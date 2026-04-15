@@ -3,3 +3,14 @@ dist/
 dist-electron/
 release/
 *.log
+.DS_Store
+.env
+.env.local
+.cache/
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.eslintcache
+

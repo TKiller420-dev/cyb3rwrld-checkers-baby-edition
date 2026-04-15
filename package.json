@@ -10,7 +10,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -p tsconfig.json && vite build",
-    "dist": "npm run build && electron-builder --win portable"
+    "dist": "npm run build && electron-builder --win portable",
+    "release": "node release-tools/release.mjs"
   },
   "dependencies": {
     "@react-three/drei": "^9.122.0",

@@ -173,6 +173,8 @@ async function checkForUpdates() {
   }
 }
 
+
+
 function createWindow() {
   const window = new BrowserWindow({
     width: 1440,
@@ -196,6 +198,8 @@ function createWindow() {
   window.loadFile(path.join(__dirname, '../dist/index.html'));
   return window;
 }
+
+
 
 app.whenReady().then(() => {
   mainWindow = createWindow();
