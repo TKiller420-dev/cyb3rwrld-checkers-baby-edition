@@ -279,7 +279,12 @@ export default function App() {
           <div className="fox-mark" aria-hidden="true">
             <span className="fox-ear fox-ear-left" />
             <span className="fox-ear fox-ear-right" />
-            <span className="fox-face" />
+            <span className="fox-face">
+              <span className="fox-eye fox-eye-left" />
+              <span className="fox-eye fox-eye-right" />
+              <span className="fox-nose" />
+            </span>
+            <span className="fox-glow" />
           </div>
         </div>
 

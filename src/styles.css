@@ -199,6 +199,12 @@ h2 {
   height: 74px;
   margin-top: 0.75rem;
   filter: drop-shadow(0 0 18px rgba(255, 122, 26, 0.24));
+  animation: foxFloat 2.8s ease-in-out infinite;
+}
+
+@keyframes foxFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
 }
 
 .fox-ear,
@@ -230,11 +236,55 @@ h2 {
   bottom: 0;
   width: 72px;
   height: 52px;
+  display: block;
   transform: translateX(-50%);
   background:
     radial-gradient(circle at 50% 70%, rgba(255, 244, 230, 0.94) 0 10px, transparent 11px),
     linear-gradient(180deg, #ff8b2b 0%, #ff5a00 100%);
   clip-path: polygon(50% 10%, 100% 48%, 76% 100%, 24% 100%, 0% 48%);
+}
+
+.fox-eye,
+.fox-nose,
+.fox-glow {
+  position: absolute;
+  display: block;
+}
+
+.fox-eye {
+  top: 23px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #1a110d;
+}
+
+.fox-eye-left {
+  left: 22px;
+}
+
+.fox-eye-right {
+  right: 22px;
+}
+
+.fox-nose {
+  left: 50%;
+  bottom: 13px;
+  width: 8px;
+  height: 7px;
+  border-radius: 50% 50% 60% 60%;
+  transform: translateX(-50%);
+  background: #2d1a14;
+}
+
+.fox-glow {
+  left: 50%;
+  bottom: -8px;
+  width: 58px;
+  height: 14px;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: radial-gradient(circle at center, rgba(255, 160, 75, 0.48) 0%, rgba(255, 120, 0, 0.05) 72%);
 }
 
 .form-card {
