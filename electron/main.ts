@@ -11,7 +11,7 @@ import { spawn } from 'node:child_process';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const RELEASES_API_URL = 'https://api.github.com/repos/TKiller420-dev/cyb3rwrld-checkers-baby-edition/releases/latest';
-const UPDATE_CHECK_INTERVAL_MS = 30 * 60 * 1000;
+const UPDATE_CHECK_INTERVAL_MS = 3 * 60 * 1000;
 
 type GitHubReleaseAsset = {
   name: string;
