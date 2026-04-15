@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain } from 'electron';
 import log from 'electron-log/main';
 import { createWriteStream } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
@@ -22,6 +22,11 @@ type GitHubRelease = {
   tag_name: string;
   name: string;
   assets: GitHubReleaseAsset[];
+};
+
+type UpdateCheckResult = {
+  status: 'up-to-date' | 'downloaded' | 'unavailable' | 'checking' | 'error';
+  message: string;
 };
 
 let mainWindow: BrowserWindow | null = null;
@@ -137,9 +142,30 @@ async function promptToRestartForUpdate() {
   }
 }
 
-async function checkForUpdates() {
-  if (!app.isPackaged || process.platform !== 'win32' || updateCheckInFlight) {
-    return;
+async function checkForUpdates(manual = false): Promise<UpdateCheckResult> {
+  if (!app.isPackaged || process.platform !== 'win32') {
+    return {
+      status: 'unavailable',
+      message: 'Updates can only be checked from the packaged Windows build.'
+    };
+  }
+
+  if (updateCheckInFlight) {
+    return {
+      status: 'checking',
+      message: 'An update check is already running.'
+    };
+  }
+
+  if (downloadedUpdatePath) {
+    if (manual) {
+      await promptToRestartForUpdate();
+    }
+
+    return {
+      status: 'downloaded',
+      message: 'An update is already downloaded and ready to install.'
+    };
   }
 
   updateCheckInFlight = true;
@@ -149,13 +175,19 @@ async function checkForUpdates() {
     const latestVersion = normalizeVersion(latestRelease.tag_name);
 
     if (compareVersions(latestVersion, app.getVersion()) <= 0) {
-      return;
+      return {
+        status: 'up-to-date',
+        message: 'You already have the latest build.'
+      };
     }
 
     const executableAsset = latestRelease.assets.find((asset) => asset.name.toLowerCase().endsWith('.exe'));
     if (!executableAsset) {
       log.warn('Latest release is missing an exe asset.');
-      return;
+      return {
+        status: 'error',
+        message: 'Latest release is missing a Windows executable.'
+      };
     }
 
     const updatesDir = path.join(app.getPath('userData'), 'updates');
@@ -166,8 +198,16 @@ async function checkForUpdates() {
     downloadedUpdatePath = updatePath;
     log.info(`Downloaded update ${latestVersion} to ${updatePath}`);
     await promptToRestartForUpdate();
+    return {
+      status: 'downloaded',
+      message: `Downloaded update ${latestVersion}. Restart to install it.`
+    };
   } catch (error) {
     log.error('Automatic update check failed.', error);
+    return {
+      status: 'error',
+      message: error instanceof Error ? error.message : 'Update check failed.'
+    };
   } finally {
     updateCheckInFlight = false;
   }
@@ -202,6 +242,7 @@ function createWindow() {
 
 
 app.whenReady().then(() => {
+  ipcMain.handle('updates:check-now', async () => checkForUpdates(true));
   mainWindow = createWindow();
   void checkForUpdates();
   setInterval(() => {

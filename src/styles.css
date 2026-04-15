@@ -257,6 +257,11 @@ h2 {
   margin-top: auto;
 }
 
+.update-button {
+  width: 100%;
+  margin-top: 0.8rem;
+}
+
 .status-card {
   display: flex;
   flex-direction: column;

@@ -11,6 +11,10 @@ interface ImportMeta {
 declare global {
   interface Window {
     checkersApi?: {
+      checkForUpdates: () => Promise<{
+        status: 'up-to-date' | 'downloaded' | 'unavailable' | 'checking' | 'error';
+        message: string;
+      }>;
       platform: string;
       versions: {
         chrome: string;

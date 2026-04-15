@@ -36,6 +36,7 @@ export default function App() {
   const [selected, setSelected] = useState<Position | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(true);
+  const [isCheckingUpdates, setIsCheckingUpdates] = useState(false);
   const [message, setMessage] = useState('Enter your tag, open a den, or join one with a room code.');
 
   const socketRef = useRef<Socket | null>(null);
@@ -202,6 +203,25 @@ export default function App() {
     socketRef.current?.emit('game:restart');
   }
 
+  async function handleCheckForUpdates() {
+    if (!window.checkersApi?.checkForUpdates) {
+      setMessage('Manual update checks are available in the packaged desktop build.');
+      return;
+    }
+
+    setIsCheckingUpdates(true);
+    setMessage('Checking for a newer build...');
+
+    try {
+      const result = await window.checkersApi.checkForUpdates();
+      setMessage(result.message);
+    } catch {
+      setMessage('Update check failed. Try again in a moment.');
+    } finally {
+      setIsCheckingUpdates(false);
+    }
+  }
+
   function handleSquareClick(position: Position) {
     if (!room || !playerColor || !isMyTurn) {
       return;
@@ -296,6 +316,10 @@ export default function App() {
           <button type="button" className="secondary" onClick={handleLeaveRoom} disabled={!room}>Leave den</button>
           <button type="button" onClick={handleRestart} disabled={!room}>Restart</button>
         </div>
+
+        <button type="button" className="secondary update-button" onClick={handleCheckForUpdates} disabled={isCheckingUpdates}>
+          {isCheckingUpdates ? 'Checking updates...' : 'Check updates'}
+        </button>
       </aside>
 
       <main className="board-panel">
