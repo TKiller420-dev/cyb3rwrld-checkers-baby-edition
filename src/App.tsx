@@ -4,7 +4,8 @@ import { getLegalMoves } from './shared';
 import type { Color, Move, Position, RoomSnapshot } from './shared';
 import { CheckersScene } from './game/CheckersScene';
 
-const SERVER_URL = 'http://217.216.40.246:4000';
+const DEFAULT_SERVER_URL = 'http://217.216.40.246:4000';
+const SERVER_URL = import.meta.env.VITE_SERVER_URL?.trim() || DEFAULT_SERVER_URL;
 
 type JoinPayload = {
   snapshot: RoomSnapshot;
@@ -153,8 +154,7 @@ export default function App() {
     setMessage('Connecting to the den network...');
 
     const socket = io(SERVER_URL, {
-      autoConnect: true,
-      transports: ['websocket']
+      autoConnect: true
     });
 
     socketRef.current = socket;
