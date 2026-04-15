@@ -323,15 +323,20 @@ class ReleaseApp(tk.Tk):
             self.after(0, _update)
 
         def run_cmd(cmd, label):
+            """Run a shell command, streaming each output line live to the log."""
             log(f"\n▶ {label}", "step")
-            result = subprocess.run(
-                cmd, shell=True, cwd=PROJECT_ROOT, capture_output=True, text=True
+            proc = subprocess.Popen(
+                cmd, shell=True, cwd=PROJECT_ROOT,
+                stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                text=True, bufsize=1
             )
-            if result.stdout.strip():
-                log(result.stdout.strip(), "muted")
-            if result.returncode != 0:
-                if result.stderr.strip():
-                    log(result.stderr.strip(), "err")
+            for line in iter(proc.stdout.readline, ""):
+                stripped = line.rstrip()
+                if stripped:
+                    log(stripped, "muted")
+            proc.stdout.close()
+            proc.wait()
+            if proc.returncode != 0:
                 log(f"✗ Failed: {label}", "err")
                 return False
             return True
@@ -348,6 +353,51 @@ class ReleaseApp(tk.Tk):
                 done(False)
                 return
             log("✓ All tools found", "ok")
+
+            # Early tag conflict check — prompt to bump before any git work
+            tag = f"v{version}"
+            existing = subprocess.run(
+                f"gh release view {tag}",
+                shell=True, cwd=PROJECT_ROOT, capture_output=True, text=True
+            )
+            if existing.returncode == 0:
+                bump_event = threading.Event()
+                bump_result = [None]
+
+                def ask_bump():
+                    parts = version.split(".")
+                    try:
+                        suggested = f"{parts[0]}.{parts[1]}.{int(parts[2]) + 1}"
+                    except (IndexError, ValueError):
+                        suggested = version + ".1"
+                    answer = messagebox.askyesno(
+                        "Tag already exists",
+                        f"Release {tag} already exists on GitHub.\n\n"
+                        f"Bump version to v{suggested} and continue?",
+                    )
+                    bump_result[0] = suggested if answer else None
+                    bump_event.set()
+
+                self.after(0, ask_bump)
+                bump_event.wait()
+
+                if bump_result[0] is None:
+                    log(f"\n  Aborted — {tag} already exists.", "err")
+                    done(False)
+                    return
+
+                new_version = bump_result[0]
+                pkg_path = os.path.join(PROJECT_ROOT, "package.json")
+                with open(pkg_path, encoding="utf-8") as f:
+                    pkg_data = json.load(f)
+                pkg_data["version"] = new_version
+                with open(pkg_path, "w", encoding="utf-8") as f:
+                    json.dump(pkg_data, f, indent=2)
+
+                version = new_version
+                tag = f"v{new_version}"
+                log(f"  ↑ Version bumped to v{new_version}", "ok")
+                self.after(0, lambda v=new_version: self.version_label.config(text=f"v{v}"))
 
             # Git add
             if not run_cmd("git add -A", "Step 1: Adding changes"):
@@ -394,10 +444,10 @@ class ReleaseApp(tk.Tk):
                 return
 
             exe_path = os.path.join(release_dir, exe_file).replace("\\", "/")
-            release_notes = f"Release v{version}: {commit_message}"
-            gh_cmd = f'gh release create v{version} "{exe_path}" --title "v{version}" --notes "{release_notes}"'
+            release_notes = f"Release {tag}: {commit_message}"
+            gh_cmd = f'gh release create {tag} "{exe_path}" --title "{tag}" --notes "{release_notes}"'
 
-            if not run_cmd(gh_cmd, f"Creating release v{version}"):
+            if not run_cmd(gh_cmd, f"Creating release {tag}"):
                 log("Make sure you ran: gh auth login", "muted")
                 done(False)
                 return
@@ -405,7 +455,7 @@ class ReleaseApp(tk.Tk):
             log("\n╔════════════════════════════════╗", "ok")
             log("║  ✓ Release complete!           ║", "ok")
             log("╚════════════════════════════════╝", "ok")
-            log(f"\nVersion : v{version}", "version")
+            log(f"\nVersion : {tag}", "version")
             log(f"Commit  : {commit_message}", "muted")
             log(f"Exe     : {exe_file}", "muted")
             log("\nClients will auto-update on next check.", "muted")
