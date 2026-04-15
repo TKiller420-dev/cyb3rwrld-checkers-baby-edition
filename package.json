@@ -1,0 +1,62 @@
+{
+  "name": "checkers-windows-client",
+  "productName": "Cyb3rWrld Checkers (Baby edition)",
+  "version": "0.1.2",
+  "description": "Cyb3rWrld Checkers (Baby edition) Windows client.",
+  "author": "TKiller420-dev",
+  "private": true,
+  "type": "module",
+  "main": "dist-electron/main.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -p tsconfig.json && vite build",
+    "dist": "npm run build && electron-builder --win portable"
+  },
+  "dependencies": {
+    "@react-three/drei": "^9.122.0",
+    "@react-three/fiber": "^8.17.10",
+    "electron-log": "^5.2.4",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "socket.io-client": "^4.8.1",
+    "three": "^0.173.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "electron": "^34.0.2",
+    "electron-builder": "^25.1.8",
+    "typescript": "^5.6.3",
+    "vite": "^6.0.11",
+    "vite-plugin-electron": "^0.29.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/TKiller420-dev/cyb3rwrld-checkers-baby-edition.git"
+  },
+  "build": {
+    "appId": "com.tris.checkers3d",
+    "productName": "Cyb3rWrld Checkers (Baby edition)",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**",
+      "dist-electron/**",
+      "package.json"
+    ],
+    "win": {
+      "signAndEditExecutable": false,
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "Cyb3rWrld-Checkers-Baby-Edition-${version}.${ext}"
+    }
+  }
+}
