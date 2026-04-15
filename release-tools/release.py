@@ -420,3 +420,4 @@ if __name__ == "__main__":
     os.chdir(PROJECT_ROOT)
     app = ReleaseApp()
     app.mainloop()
+
