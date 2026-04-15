@@ -11,6 +11,8 @@ import subprocess
 import sys
 import threading
 import tkinter as tk
+import urllib.error
+import urllib.request
 from tkinter import font, messagebox, ttk
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -72,7 +74,9 @@ class ReleaseApp(tk.Tk):
         self.geometry("620x680")
 
         self._running = False
+        self._suggesting = False
         self._suggestion_visible = False
+        self.dynamic_suggestions = []
 
         self._build_ui()
         self._load_version()
@@ -137,6 +141,22 @@ class ReleaseApp(tk.Tk):
         self.commit_entry.bind("<Return>", lambda e: self._hide_suggestions())
         self.commit_entry.bind("<Escape>", lambda e: self._hide_suggestions())
         self.commit_entry.bind("<Down>", self._focus_suggestions)
+
+        self.ai_btn = tk.Button(
+            body,
+            text="AI Suggest Commit",
+            font=font.Font(family="Segoe UI", size=10, weight="bold"),
+            bg=PANEL_BG,
+            fg=TEXT,
+            activebackground="#1a254d",
+            activeforeground=TEXT,
+            relief="flat",
+            bd=0,
+            cursor="hand2",
+            pady=8,
+            command=self._start_ai_suggest,
+        )
+        self.ai_btn.pack(fill="x", pady=(10, 0))
 
         # Suggestions dropdown (floating listbox)
         self.suggestion_frame = tk.Frame(self, bg=PANEL_BG, bd=1, relief="flat", highlightthickness=1, highlightbackground=BORDER)
@@ -252,7 +272,8 @@ class ReleaseApp(tk.Tk):
         if not query:
             self._hide_suggestions()
             return
-        matches = [s for s in SUGGESTIONS if query in s.lower()]
+        all_suggestions = self.dynamic_suggestions + [s for s in SUGGESTIONS if s not in self.dynamic_suggestions]
+        matches = [s for s in all_suggestions if query in s.lower()]
         if matches:
             self._show_suggestions(matches)
         else:
@@ -292,6 +313,183 @@ class ReleaseApp(tk.Tk):
             self.suggestion_list.focus_set()
             self.suggestion_list.selection_set(0)
 
+    # ── AI Commit Suggestions ───────────────────────────────────────────────
+
+    def _start_ai_suggest(self):
+        if self._running or self._suggesting:
+            return
+        self._suggesting = True
+        self.ai_btn.config(state="disabled", text="Thinking...")
+        self._set_status("Generating commit suggestions from current changes...")
+        threading.Thread(target=self._run_ai_suggest, daemon=True).start()
+
+    def _run_ai_suggest(self):
+        def finish_ui(suggestions):
+            self._suggesting = False
+            self.ai_btn.config(state="normal", text="AI Suggest Commit")
+            if suggestions:
+                self.dynamic_suggestions = suggestions[:6]
+                self.commit_var.set(self.dynamic_suggestions[0])
+                self.commit_entry.icursor("end")
+                self._show_suggestions(self.dynamic_suggestions)
+                self._set_status("AI suggestions ready.", SUCCESS)
+                self._log("\n🤖 Suggested commit messages:", "step")
+                for msg in self.dynamic_suggestions:
+                    self._log(f"  • {msg}", "muted")
+            else:
+                self._set_status("Could not generate suggestions.", ERROR)
+                self._log("No commit suggestions could be generated.", "err")
+
+        try:
+            files, diff_text = self._collect_change_context()
+            if not files and not diff_text:
+                self.after(0, lambda: finish_ui(["No changes to commit"]))
+                return
+
+            suggestions = self._request_ai_suggestions(files, diff_text)
+            if not suggestions:
+                suggestions = self._build_fallback_suggestions(files, diff_text)
+
+            self.after(0, lambda s=suggestions: finish_ui(s))
+        except Exception as exc:
+            self.after(0, lambda: finish_ui([]))
+            self.after(0, lambda: self._log(f"AI suggestion error: {exc}", "err"))
+
+    def _collect_change_context(self):
+        names_cmd = "git diff --cached --name-status"
+        names = subprocess.run(
+            names_cmd, shell=True, cwd=PROJECT_ROOT, capture_output=True, text=True
+        ).stdout.strip()
+
+        if not names:
+            names = subprocess.run(
+                "git diff --name-status HEAD", shell=True, cwd=PROJECT_ROOT, capture_output=True, text=True
+            ).stdout.strip()
+
+        diff_cmd = "git diff --cached -- . ':(exclude)release/*'"
+        diff_text = subprocess.run(
+            diff_cmd, shell=True, cwd=PROJECT_ROOT, capture_output=True, text=True
+        ).stdout
+        if not diff_text.strip():
+            diff_text = subprocess.run(
+                "git diff -- . ':(exclude)release/*'", shell=True, cwd=PROJECT_ROOT, capture_output=True, text=True
+            ).stdout
+
+        files = []
+        for line in names.splitlines():
+            parts = line.strip().split(maxsplit=1)
+            if len(parts) == 2:
+                files.append(parts[1])
+
+        # Keep prompt size in check for API calls.
+        trimmed = "\n".join(diff_text.splitlines()[:220])
+        return files, trimmed
+
+    def _request_ai_suggestions(self, files, diff_text):
+        openrouter_key = os.getenv("OPENROUTER_API_KEY", "").strip()
+        openai_key = os.getenv("OPENAI_API_KEY", "").strip()
+
+        if openrouter_key:
+            provider = "openrouter"
+            api_key = openrouter_key
+            endpoint = os.getenv("OPENROUTER_API_URL", "https://openrouter.ai/api/v1/chat/completions").strip()
+            model = os.getenv("OPENROUTER_MODEL", "meta-llama/llama-3.3-8b-instruct:free").strip() or "meta-llama/llama-3.3-8b-instruct:free"
+        elif openai_key:
+            provider = "openai"
+            api_key = openai_key
+            endpoint = os.getenv("OPENAI_API_URL", "https://api.openai.com/v1/chat/completions").strip()
+            model = os.getenv("OPENAI_MODEL", "gpt-4o-mini").strip() or "gpt-4o-mini"
+        else:
+            return []
+
+        prompt = (
+            "You generate concise git commit messages based on code changes. "
+            "Return strict JSON only with this shape: {\"suggestions\":[\"msg1\",\"msg2\",\"msg3\"]}. "
+            "Messages must be <= 70 chars, imperative mood, and no trailing period.\n\n"
+            f"Changed files:\n{os.linesep.join(files) if files else '(none)'}\n\n"
+            f"Diff excerpt:\n{diff_text or '(no diff excerpt)'}"
+        )
+
+        payload = {
+            "model": model,
+            "temperature": 0.35,
+            "messages": [
+                {"role": "system", "content": "You are a senior engineer writing quality commit messages."},
+                {"role": "user", "content": prompt},
+            ],
+        }
+
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        }
+        if provider == "openrouter":
+            headers["HTTP-Referer"] = "https://local-release-tool"
+            headers["X-Title"] = "Cyb3rWrld Release Tool"
+
+        req = urllib.request.Request(
+            endpoint,
+            data=json.dumps(payload).encode("utf-8"),
+            headers=headers,
+            method="POST",
+        )
+
+        try:
+            with urllib.request.urlopen(req, timeout=20) as resp:
+                raw = resp.read().decode("utf-8")
+        except (urllib.error.URLError, TimeoutError):
+            return []
+
+        try:
+            content = json.loads(raw)["choices"][0]["message"]["content"]
+            if content.startswith("```"):
+                content = content.strip("`")
+                if content.lower().startswith("json"):
+                    content = content[4:].strip()
+            parsed = json.loads(content)
+            suggestions = parsed.get("suggestions", [])
+            clean = []
+            for s in suggestions:
+                msg = str(s).strip().replace("\n", " ")
+                if msg and msg not in clean:
+                    clean.append(msg)
+            return clean[:6]
+        except Exception:
+            return []
+
+    def _build_fallback_suggestions(self, files, diff_text):
+        scope = "app"
+        if any(f.startswith("electron/") for f in files):
+            scope = "electron"
+        elif any(f.startswith("src/game/") for f in files):
+            scope = "game"
+        elif any(f.endswith(".css") for f in files):
+            scope = "ui"
+
+        lower_diff = diff_text.lower()
+        hints = []
+        if "update" in lower_diff or "interval" in lower_diff:
+            hints.append(f"Adjust {scope} update behavior")
+        if "button" in lower_diff or "layout" in lower_diff or "style" in lower_diff:
+            hints.append(f"Polish {scope} interface")
+        if "release" in lower_diff or "version" in lower_diff:
+            hints.append("Improve release workflow")
+
+        file_count = len(files)
+        base = [
+            f"Refine {scope} changes across {file_count} file{'s' if file_count != 1 else ''}",
+            f"Update {scope} logic and cleanup",
+            f"Improve {scope} stability",
+        ]
+
+        out = []
+        for msg in hints + base + SUGGESTIONS:
+            if msg not in out:
+                out.append(msg)
+            if len(out) >= 6:
+                break
+        return out
+
     # ── Release logic ─────────────────────────────────────────────────────────
 
     def _start_release(self):
@@ -304,6 +502,8 @@ class ReleaseApp(tk.Tk):
 
         self._clear_log()
         self._running = True
+        self._hide_suggestions()
+        self.ai_btn.config(state="disabled")
         self.release_btn.config(state="disabled", text="⏳  Running…", bg=MUTED)
         threading.Thread(target=self._run_release, args=(msg,), daemon=True).start()
 
@@ -316,6 +516,8 @@ class ReleaseApp(tk.Tk):
         def done(success):
             def _update():
                 self._running = False
+                if not self._suggesting:
+                    self.ai_btn.config(state="normal")
                 if success:
                     self.release_btn.config(state="normal", text="✅  Complete! Run again?", bg=SUCCESS)
                 else:
@@ -330,11 +532,12 @@ class ReleaseApp(tk.Tk):
                 stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                 text=True, bufsize=1
             )
-            for line in iter(proc.stdout.readline, ""):
-                stripped = line.rstrip()
-                if stripped:
-                    log(stripped, "muted")
-            proc.stdout.close()
+            if proc.stdout is not None:
+                for line in iter(proc.stdout.readline, ""):
+                    stripped = line.rstrip()
+                    if stripped:
+                        log(stripped, "muted")
+                proc.stdout.close()
             proc.wait()
             if proc.returncode != 0:
                 log(f"✗ Failed: {label}", "err")
@@ -362,7 +565,7 @@ class ReleaseApp(tk.Tk):
             )
             if existing.returncode == 0:
                 bump_event = threading.Event()
-                bump_result = [None]
+                bump_result = [None]  # type: list[str | None]
 
                 def ask_bump():
                     parts = version.split(".")
@@ -433,10 +636,25 @@ class ReleaseApp(tk.Tk):
             release_dir = os.path.join(PROJECT_ROOT, "release")
             exe_file = None
             if os.path.isdir(release_dir):
-                for f in os.listdir(release_dir):
-                    if f.endswith(".exe"):
+                exes = [f for f in os.listdir(release_dir) if f.lower().endswith(".exe")]
+                expected_suffix = f"-{version}.exe"
+
+                # Prefer the EXE matching the current app version.
+                for f in exes:
+                    if f.endswith(expected_suffix):
                         exe_file = f
                         break
+
+                # Fallback: pick newest EXE if naming is customized.
+                if not exe_file and exes:
+                    exe_file = max(
+                        exes,
+                        key=lambda name: os.path.getmtime(os.path.join(release_dir, name))
+                    )
+                    log(
+                        f"  (version-named EXE not found, using newest: {exe_file})",
+                        "muted",
+                    )
 
             if not exe_file:
                 log("✗ Could not find .exe in release/ folder", "err")
