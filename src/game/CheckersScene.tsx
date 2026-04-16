@@ -48,6 +48,25 @@ function TargetMarker({ x, z }: { x: number; z: number }) {
   );
 }
 
+function HeartBadge({ color }: { color: string }) {
+  return (
+    <group position={[0, 0.14, 0]}>
+      <mesh castShadow position={[-0.07, 0.04, 0]}>
+        <sphereGeometry args={[0.08, 16, 16]} />
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.26} />
+      </mesh>
+      <mesh castShadow position={[0.07, 0.04, 0]}>
+        <sphereGeometry args={[0.08, 16, 16]} />
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.26} />
+      </mesh>
+      <mesh castShadow position={[0, -0.05, 0]} rotation={[0, 0, Math.PI / 4]}>
+        <boxGeometry args={[0.15, 0.15, 0.06]} />
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.26} />
+      </mesh>
+    </group>
+  );
+}
+
 function FoxCompanion({ position, rotationY }: { position: [number, number, number]; rotationY: number }) {
   return (
     <group position={position} rotation={[0, rotationY, 0]}>
@@ -94,25 +113,25 @@ function AnimatedLights() {
   useFrame((state) => {
     const t = state.clock.getElapsedTime();
     if (violetRef.current) {
-      violetRef.current.intensity = 9 + Math.sin(t * 2.2) * 2;
+      violetRef.current.intensity = 11 + Math.sin(t * 2.2) * 2.4;
     }
     if (blueRef.current) {
-      blueRef.current.intensity = 8 + Math.sin(t * 1.6 + 1.2) * 1.8;
+      blueRef.current.intensity = 10 + Math.sin(t * 1.6 + 1.2) * 2.2;
     }
   });
 
   return (
     <>
-      <pointLight ref={violetRef} position={[-3.2, 2.7, -3.4]} intensity={9.5} distance={14} color="#8b5cf6" />
-      <pointLight ref={blueRef} position={[3.4, 2.5, 3.1]} intensity={8.4} distance={14} color="#2f7bff" />
+      <pointLight ref={violetRef} position={[-3.2, 2.7, -3.4]} intensity={11} distance={14} color="#8b5cf6" />
+      <pointLight ref={blueRef} position={[3.4, 2.5, 3.1]} intensity={10} distance={14} color="#2f7bff" />
       <spotLight
         castShadow
         position={[0, 8.5, 0]}
         angle={0.35}
         penumbra={0.35}
-        intensity={1.35}
+        intensity={1.9}
         distance={20}
-        color="#ffd8a8"
+        color="#ffe0ba"
       />
     </>
   );
@@ -126,12 +145,12 @@ function BoardScene({ state, localColor, selected, legalMoves, onSquareClick }: 
     <group rotation={[0, rotation, 0]}>
       <mesh position={[0, -0.28, 0]} receiveShadow>
         <boxGeometry args={[9.4, 0.4, 9.4]} />
-        <meshStandardMaterial color="#8a5c31" roughness={0.72} />
+        <meshStandardMaterial color="#a57443" roughness={0.66} />
       </mesh>
 
       <mesh position={[0, -1.62, 0]} receiveShadow>
         <boxGeometry args={[10.8, 0.5, 10.8]} />
-        <meshStandardMaterial color="#5e3719" roughness={0.78} />
+        <meshStandardMaterial color="#7c4d28" roughness={0.72} />
       </mesh>
 
       {[
@@ -142,7 +161,7 @@ function BoardScene({ state, localColor, selected, legalMoves, onSquareClick }: 
       ].map((position) => (
         <mesh key={position.join('-')} position={position as [number, number, number]} receiveShadow>
           <boxGeometry args={[0.48, 1.45, 0.48]} />
-          <meshStandardMaterial color="#4d2914" roughness={0.78} />
+          <meshStandardMaterial color="#684022" roughness={0.72} />
         </mesh>
       ))}
 
@@ -151,7 +170,7 @@ function BoardScene({ state, localColor, selected, legalMoves, onSquareClick }: 
 
       <mesh position={[0, -0.02, 0]} receiveShadow>
         <cylinderGeometry args={[5.3, 5.3, 0.05, 40]} />
-        <meshStandardMaterial color="#1f1530" emissive="#120f1c" emissiveIntensity={0.22} transparent opacity={0.86} />
+        <meshStandardMaterial color="#31254a" emissive="#1d1530" emissiveIntensity={0.28} transparent opacity={0.9} />
       </mesh>
 
       {displayState.board.map((row, rowIndex) =>
@@ -162,6 +181,7 @@ function BoardScene({ state, localColor, selected, legalMoves, onSquareClick }: 
           const isDark = (rowIndex + colIndex) % 2 === 1;
           const isSelected = selected ? samePosition(selected, squarePosition) : false;
           const isTarget = legalMoves.some((move) => samePosition(move.to, squarePosition));
+          const heartColor = (rowIndex + colIndex) % 2 === 0 ? '#7a61ff' : '#3f9bff';
 
           return (
             <group key={`${rowIndex}-${colIndex}`}>
@@ -175,9 +195,9 @@ function BoardScene({ state, localColor, selected, legalMoves, onSquareClick }: 
               >
                 <boxGeometry args={[1, 0.18, 1]} />
                 <meshStandardMaterial
-                  color={isDark ? '#151a36' : '#28315f'}
-                  emissive={isSelected ? '#ff7a1a' : isTarget ? '#72f2ff' : '#1a1f33'}
-                  emissiveIntensity={isSelected ? 0.82 : isTarget ? 0.42 : 0.14}
+                  color={isDark ? '#2d3a71' : '#5a6cb3'}
+                  emissive={isSelected ? '#ff7a1a' : isTarget ? '#72f2ff' : '#273359'}
+                  emissiveIntensity={isSelected ? 0.86 : isTarget ? 0.48 : 0.22}
                 />
               </mesh>
 
@@ -201,10 +221,7 @@ function BoardScene({ state, localColor, selected, legalMoves, onSquareClick }: 
                       metalness={0.55}
                     />
                   </mesh>
-                  <mesh position={[0, 0.12, 0]} castShadow>
-                    <torusGeometry args={[0.21, 0.05, 18, 40]} />
-                    <meshStandardMaterial color="#ff8c2a" emissive="#ff8c2a" emissiveIntensity={0.28} />
-                  </mesh>
+                  <HeartBadge color={heartColor} />
                   {piece.king ? (
                     <mesh position={[0, 0.18, 0]} castShadow>
                       <cylinderGeometry args={[0.18, 0.18, 0.12, 32]} />
@@ -224,12 +241,13 @@ function BoardScene({ state, localColor, selected, legalMoves, onSquareClick }: 
 export function CheckersScene(props: CheckersSceneProps) {
   return (
     <Canvas shadows camera={{ position: [0, 8.5, 8.2], fov: 38 }}>
-      <color attach="background" args={['#070b18']} />
-      <fog attach="fog" args={['#070b18', 8, 18]} />
-      <hemisphereLight intensity={0.95} color="#7a8cff" groundColor="#1f0d22" />
-      <directionalLight castShadow position={[5, 9, 6]} intensity={1.55} color="#ff8c2a" shadow-mapSize-width={2048} shadow-mapSize-height={2048} />
+      <color attach="background" args={['#1c2550']} />
+      <fog attach="fog" args={['#1c2550', 10, 22]} />
+      <ambientLight intensity={0.42} color="#b5c6ff" />
+      <hemisphereLight intensity={1.25} color="#9fb1ff" groundColor="#3e2a47" />
+      <directionalLight castShadow position={[5, 9, 6]} intensity={2.15} color="#ffd1a1" shadow-mapSize-width={2048} shadow-mapSize-height={2048} />
       <AnimatedLights />
-      <Sparkles count={48} scale={[10.2, 3.2, 10.2]} size={2.5} speed={0.28} opacity={0.6} color="#ffd39b" noise={0.3} />
+      <Sparkles count={56} scale={[10.2, 3.6, 10.2]} size={2.8} speed={0.34} opacity={0.72} color="#ffd39b" noise={0.3} />
       <BoardScene {...props} />
       <OrbitControls enablePan={false} minDistance={8.5} maxDistance={12} minPolarAngle={0.65} maxPolarAngle={1.25} />
     </Canvas>
