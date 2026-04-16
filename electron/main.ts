@@ -223,12 +223,15 @@ function createWindow() {
     minHeight: 760,
     title: 'Cyb3rWrld Checkers (Baby edition)',
     backgroundColor: '#070b18',
+    autoHideMenuBar: true,
     webPreferences: {
       preload: path.join(__dirname, 'preload.mjs'),
       contextIsolation: true,
       nodeIntegration: false
     }
   });
+
+  window.setMenuBarVisibility(false);
 
   if (process.env.VITE_DEV_SERVER_URL) {
     window.loadURL(process.env.VITE_DEV_SERVER_URL);

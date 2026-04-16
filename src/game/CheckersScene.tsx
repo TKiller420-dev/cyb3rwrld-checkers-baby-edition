@@ -62,6 +62,7 @@ function HeartBadge({ color }: { color: string }) {
     const t = state.clock.getElapsedTime();
     if (heartRef.current) {
       heartRef.current.rotation.y = Math.sin(t * 1.8) * 0.18;
+      heartRef.current.rotation.z = Math.PI;
       heartRef.current.position.y = 0.1 + Math.sin(t * 3.2) * 0.01;
     }
   });
@@ -124,7 +125,7 @@ function FoxCompanion({ phase = 0, speed = 0.045, variant = 'orange' }: { phase?
     } else if (seg < 2) {
       x = max;
       z = min + (max - min) * (seg - 1);
-      heading = Math.PI;
+      heading = 0;
     } else if (seg < 3) {
       x = max - (max - min) * (seg - 2);
       z = max;
@@ -132,7 +133,7 @@ function FoxCompanion({ phase = 0, speed = 0.045, variant = 'orange' }: { phase?
     } else {
       x = min;
       z = max - (max - min) * (seg - 3);
-      heading = 0;
+      heading = Math.PI;
     }
 
     const bob = Math.sin(state.clock.getElapsedTime() * 10 + phase * 10) * 0.025;
