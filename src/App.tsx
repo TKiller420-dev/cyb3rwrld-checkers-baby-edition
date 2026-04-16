@@ -4,7 +4,7 @@ import { getLegalMoves } from './shared';
 import type { Color, Move, Position, RoomSnapshot } from './shared';
 import { CheckersScene } from './game/CheckersScene';
 
-const DEFAULT_SERVER_URL = 'https://217-216-40-246.sslip.io/checkers';
+const DEFAULT_SERVER_URL = 'https://217-216-40-246.sslip.io';
 const SERVER_URL = import.meta.env.VITE_SERVER_URL?.trim() || DEFAULT_SERVER_URL;
 
 function getSocketConnectionConfig(rawUrl: string) {
@@ -84,8 +84,9 @@ export default function App() {
     }
   }, [room, selected]);
 
+  const hasBothPlayers = Boolean(room?.players.red && room?.players.black);
   const legalMoves = room && selected ? getLegalMoves(room.state, selected) : [];
-  const isMyTurn = Boolean(room && playerColor && room.state.turn === playerColor && !room.state.winner);
+  const isMyTurn = Boolean(room && playerColor && hasBothPlayers && room.state.turn === playerColor && !room.state.winner);
   const canInteractWithServer = isConnected && !isConnecting;
 
   function bindSocket(socket: Socket) {
@@ -240,7 +241,7 @@ export default function App() {
   }
 
   function handleSquareClick(position: Position) {
-    if (!room || !playerColor || !isMyTurn) {
+    if (!room || !playerColor || !hasBothPlayers || !isMyTurn) {
       return;
     }
 
@@ -288,20 +289,22 @@ export default function App() {
           </div>
         </div>
 
-        <div className="card form-card">
-          <label>
-            <span className="label">Tag</span>
-            <input value={playerName} onChange={(event) => setPlayerName(event.target.value)} maxLength={24} />
-          </label>
-          <label>
-            <span className="label">Den code</span>
-            <input value={roomCodeInput} onChange={(event) => setRoomCodeInput(event.target.value.toUpperCase())} maxLength={5} placeholder="ABCDE" />
-          </label>
-          <div className="button-row">
-            <button type="button" onClick={handleCreateRoom} disabled={!canInteractWithServer}>Open den</button>
-            <button type="button" className="secondary" onClick={handleJoinRoom} disabled={!canInteractWithServer}>Enter den</button>
+        {!room ? (
+          <div className="card form-card">
+            <label>
+              <span className="label">Tag</span>
+              <input value={playerName} onChange={(event) => setPlayerName(event.target.value)} maxLength={24} />
+            </label>
+            <label>
+              <span className="label">Den code</span>
+              <input value={roomCodeInput} onChange={(event) => setRoomCodeInput(event.target.value.toUpperCase())} maxLength={5} placeholder="ABCDE" />
+            </label>
+            <div className="button-row">
+              <button type="button" onClick={handleCreateRoom} disabled={!canInteractWithServer}>Open den</button>
+              <button type="button" className="secondary" onClick={handleJoinRoom} disabled={!canInteractWithServer}>Enter den</button>
+            </div>
           </div>
-        </div>
+        ) : null}
 
         <div className="card status-card">
           <div className="status-row">
@@ -347,7 +350,11 @@ export default function App() {
       <main className="board-panel">
         <header className="board-header">
           <h2>{isMyTurn ? 'Your move' : room?.state.winner ? 'Game over' : room ? 'Waiting…' : 'Board'}</h2>
-          <p className="hint">Select a piece, then tap a lit square to move. Captures are forced.</p>
+          <p className="hint">
+            {room && !hasBothPlayers
+              ? 'Waiting for another player to join this den before the game starts.'
+              : 'Select a piece, then tap a lit square to move. Captures are forced.'}
+          </p>
         </header>
 
         <div className="board-frame">
