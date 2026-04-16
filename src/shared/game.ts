@@ -2,6 +2,14 @@ import type { Board, Color, GameState, Move, Piece, Position } from './types';
 
 const BOARD_SIZE = 8;
 
+type RuleOptions = {
+  forcedCaptures?: boolean;
+};
+
+function shouldForceCaptures(options?: RuleOptions) {
+  return options?.forcedCaptures ?? true;
+}
+
 function isDarkSquare(row: number, col: number) {
   return (row + col) % 2 === 1;
 }
@@ -166,16 +174,18 @@ export function createInitialState(): GameState {
   };
 }
 
-export function getLegalMoves(state: GameState, from?: Position): Move[] {
+export function getLegalMoves(state: GameState, from?: Position, options?: RuleOptions): Move[] {
   if (state.winner) {
     return [];
   }
 
-  if (from && state.mustContinueFrom && !isSamePosition(from, state.mustContinueFrom)) {
+  const forcedCaptures = shouldForceCaptures(options);
+
+  if (forcedCaptures && from && state.mustContinueFrom && !isSamePosition(from, state.mustContinueFrom)) {
     return [];
   }
 
-  const candidatePositions = state.mustContinueFrom
+  const candidatePositions = forcedCaptures && state.mustContinueFrom
     ? [state.mustContinueFrom]
     : from
       ? [from]
@@ -193,15 +203,20 @@ export function getLegalMoves(state: GameState, from?: Position): Move[] {
     const pieceCaptures = listCapturesForPiece(state.board, position, piece);
     captureMoves.push(...pieceCaptures);
 
-    if (pieceCaptures.length === 0 && !state.mustContinueFrom) {
+    if ((!forcedCaptures || pieceCaptures.length === 0) && (!forcedCaptures || !state.mustContinueFrom)) {
       simpleMoves.push(...listSimpleMovesForPiece(state.board, position, piece));
     }
   }
 
-  return captureMoves.length > 0 ? captureMoves : simpleMoves;
+  if (forcedCaptures) {
+    return captureMoves.length > 0 ? captureMoves : simpleMoves;
+  }
+
+  return [...captureMoves, ...simpleMoves];
 }
 
-export function applyMove(state: GameState, requestedMove: Move): GameState {
+export function applyMove(state: GameState, requestedMove: Move, options?: RuleOptions): GameState {
+  const forcedCaptures = shouldForceCaptures(options);
   const piece = getPiece(state.board, requestedMove.from);
   if (!piece) {
     throw new Error('No piece at the selected square.');
@@ -211,7 +226,7 @@ export function applyMove(state: GameState, requestedMove: Move): GameState {
     throw new Error('It is not that piece\'s turn.');
   }
 
-  const legalMove = getLegalMoves(state, requestedMove.from).find((move) => isSamePosition(move.to, requestedMove.to));
+  const legalMove = getLegalMoves(state, requestedMove.from, options).find((move) => isSamePosition(move.to, requestedMove.to));
   if (!legalMove) {
     throw new Error('That move is not legal.');
   }
@@ -249,13 +264,13 @@ export function applyMove(state: GameState, requestedMove: Move): GameState {
     return nextState;
   }
 
-  if (legalMove.capturedPosition && !becameKing) {
+  if (forcedCaptures && legalMove.capturedPosition && !becameKing) {
     const continuationState: GameState = {
       ...nextState,
       mustContinueFrom: legalMove.to
     };
 
-    const followUpCaptures = getLegalMoves(continuationState, legalMove.to).filter((move) => Boolean(move.capturedPosition));
+    const followUpCaptures = getLegalMoves(continuationState, legalMove.to, options).filter((move) => Boolean(move.capturedPosition));
     if (followUpCaptures.length > 0) {
       return continuationState;
     }
@@ -267,7 +282,7 @@ export function applyMove(state: GameState, requestedMove: Move): GameState {
     ...nextState,
     mustContinueFrom: null,
     winner: null
-  });
+  }, undefined, options);
 
   if (opponentMoves.length === 0) {
     nextState.winner = state.turn;

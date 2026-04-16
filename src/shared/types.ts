@@ -31,8 +31,15 @@ export type RoomPlayers = {
   black: string | null;
 };
 
+export type RoomRules = {
+  forcedCaptures: boolean;
+};
+
 export type RoomSnapshot = {
   roomCode: string;
   players: RoomPlayers;
   state: GameState;
+  name?: string;
+  hasPassword?: boolean;
+  rules?: RoomRules;
 };

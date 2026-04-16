@@ -7,6 +7,27 @@ import { CheckersScene } from './game/CheckersScene';
 const DEFAULT_SERVER_URL = 'https://217-216-40-246.sslip.io';
 const SERVER_URL = import.meta.env.VITE_SERVER_URL?.trim() || DEFAULT_SERVER_URL;
 
+const STORAGE_KEYS = {
+  playerName: 'checkers.playerName',
+  roomCode: 'checkers.roomCodeInput',
+  denName: 'checkers.denNameInput',
+  roomPassword: 'checkers.roomPasswordInput',
+  preferredSide: 'checkers.preferredSide',
+  forcedCaptures: 'checkers.forcedCaptures',
+  session: 'checkers.session'
+} as const;
+
+type SidePreference = Color | 'auto';
+
+type StoredSession = {
+  roomCode: string;
+  playerName: string;
+  password: string;
+  denName: string;
+  preferredSide: SidePreference;
+  forcedCaptures: boolean;
+};
+
 function getSocketConnectionConfig(rawUrl: string) {
   try {
     const parsed = new URL(rawUrl);
@@ -25,6 +46,84 @@ type JoinPayload = {
   yourColor: Color;
 };
 
+function readStorage(key: string) {
+  try {
+    return window.localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function writeStorage(key: string, value: string) {
+  try {
+    window.localStorage.setItem(key, value);
+  } catch {
+    // Ignore storage errors in restricted environments.
+  }
+}
+
+function removeStorage(key: string) {
+  try {
+    window.localStorage.removeItem(key);
+  } catch {
+    // Ignore storage errors in restricted environments.
+  }
+}
+
+function readStoredString(key: string, fallback: string) {
+  const value = readStorage(key);
+  return value && value.trim().length > 0 ? value : fallback;
+}
+
+function readStoredSidePreference() {
+  const value = readStorage(STORAGE_KEYS.preferredSide);
+  if (value === 'red' || value === 'black' || value === 'auto') {
+    return value;
+  }
+
+  return 'auto';
+}
+
+function readStoredForcedCaptures() {
+  const value = readStorage(STORAGE_KEYS.forcedCaptures);
+  if (value === 'true') {
+    return true;
+  }
+
+  if (value === 'false') {
+    return false;
+  }
+
+  return true;
+}
+
+function readStoredSession() {
+  const raw = readStorage(STORAGE_KEYS.session);
+  if (!raw) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as StoredSession;
+    if (!parsed.roomCode || !parsed.playerName) {
+      return null;
+    }
+
+    const preferredSide: SidePreference = parsed.preferredSide === 'red' || parsed.preferredSide === 'black' ? parsed.preferredSide : 'auto';
+
+    return {
+      roomCode: parsed.roomCode.toUpperCase(),
+      playerName: parsed.playerName,
+      password: parsed.password ?? '',
+      denName: parsed.denName ?? '',
+      preferredSide,
+      forcedCaptures: typeof parsed.forcedCaptures === 'boolean' ? parsed.forcedCaptures : true
+    };
+  } catch {
+    return null;
+  }
+}
+
 function getColorLabel(color: Color | null) {
   if (color === 'red') {
     return 'violet';
@@ -42,9 +141,15 @@ function samePosition(left: Position, right: Position) {
 }
 
 export default function App() {
-  const [playerName, setPlayerName] = useState('Player');
-  const [roomCodeInput, setRoomCodeInput] = useState('');
+  const [playerName, setPlayerName] = useState(() => readStoredString(STORAGE_KEYS.playerName, 'Player'));
+  const [roomCodeInput, setRoomCodeInput] = useState(() => readStoredString(STORAGE_KEYS.roomCode, '').toUpperCase());
+  const [denNameInput, setDenNameInput] = useState(() => readStoredString(STORAGE_KEYS.denName, ''));
+  const [roomPasswordInput, setRoomPasswordInput] = useState(() => readStoredString(STORAGE_KEYS.roomPassword, ''));
+  const [preferredSide, setPreferredSide] = useState<SidePreference>(() => readStoredSidePreference());
+  const [forcedCapturesInput, setForcedCapturesInput] = useState(() => readStoredForcedCaptures());
   const [room, setRoom] = useState<RoomSnapshot | null>(null);
+  const [activeDenName, setActiveDenName] = useState<string | null>(null);
+  const [roomForcedCaptures, setRoomForcedCaptures] = useState<boolean | null>(null);
   const [playerColor, setPlayerColor] = useState<Color | null>(null);
   const [selected, setSelected] = useState<Position | null>(null);
   const [isConnected, setIsConnected] = useState(false);
@@ -54,6 +159,10 @@ export default function App() {
 
   const socketRef = useRef<Socket | null>(null);
   const socketUrlRef = useRef<string | null>(null);
+  const restoredSessionRef = useRef<StoredSession | null>(readStoredSession());
+  const hasAttemptedRestoreRef = useRef(false);
+
+  const activeForcedCaptures = room?.rules?.forcedCaptures ?? roomForcedCaptures ?? true;
 
   useEffect(() => {
     ensureSocket();
@@ -62,6 +171,30 @@ export default function App() {
       socketRef.current?.disconnect();
     };
   }, []);
+
+  useEffect(() => {
+    writeStorage(STORAGE_KEYS.playerName, playerName);
+  }, [playerName]);
+
+  useEffect(() => {
+    writeStorage(STORAGE_KEYS.roomCode, roomCodeInput);
+  }, [roomCodeInput]);
+
+  useEffect(() => {
+    writeStorage(STORAGE_KEYS.denName, denNameInput);
+  }, [denNameInput]);
+
+  useEffect(() => {
+    writeStorage(STORAGE_KEYS.roomPassword, roomPasswordInput);
+  }, [roomPasswordInput]);
+
+  useEffect(() => {
+    writeStorage(STORAGE_KEYS.preferredSide, preferredSide);
+  }, [preferredSide]);
+
+  useEffect(() => {
+    writeStorage(STORAGE_KEYS.forcedCaptures, String(forcedCapturesInput));
+  }, [forcedCapturesInput]);
 
   useEffect(() => {
     if (!room) {
@@ -78,16 +211,27 @@ export default function App() {
       return;
     }
 
-    const nextMoves = getLegalMoves(room.state, selected);
+    const nextMoves = getLegalMoves(room.state, selected, { forcedCaptures: activeForcedCaptures });
     if (nextMoves.length === 0) {
       setSelected(null);
     }
-  }, [room, selected]);
+  }, [room, selected, activeForcedCaptures]);
 
   const hasBothPlayers = Boolean(room?.players.red && room?.players.black);
-  const legalMoves = room && selected ? getLegalMoves(room.state, selected) : [];
+  const legalMoves = room && selected ? getLegalMoves(room.state, selected, { forcedCaptures: activeForcedCaptures }) : [];
   const isMyTurn = Boolean(room && playerColor && hasBothPlayers && room.state.turn === playerColor && !room.state.winner);
   const canInteractWithServer = isConnected && !isConnecting;
+
+  function persistSession(nextSession: StoredSession) {
+    restoredSessionRef.current = nextSession;
+    writeStorage(STORAGE_KEYS.session, JSON.stringify(nextSession));
+  }
+
+  function clearSessionPersistence() {
+    restoredSessionRef.current = null;
+    hasAttemptedRestoreRef.current = false;
+    removeStorage(STORAGE_KEYS.session);
+  }
 
   function bindSocket(socket: Socket) {
     socket.on('connect', () => {
@@ -98,11 +242,30 @@ export default function App() {
           ? 'Connected. Open a den or enter one with a code.'
           : currentMessage
       );
+
+      if (!hasAttemptedRestoreRef.current && !room && restoredSessionRef.current) {
+        hasAttemptedRestoreRef.current = true;
+        const persisted = restoredSessionRef.current;
+        setPlayerName(persisted.playerName);
+        setRoomCodeInput(persisted.roomCode);
+        setRoomPasswordInput(persisted.password);
+        setDenNameInput(persisted.denName);
+        setPreferredSide(persisted.preferredSide);
+        setForcedCapturesInput(persisted.forcedCaptures);
+        setMessage(`Connected. Restoring den ${persisted.roomCode}...`);
+        socket.emit('room:join', {
+          roomCode: persisted.roomCode,
+          name: persisted.playerName,
+          password: persisted.password || undefined,
+          preferredColor: persisted.preferredSide === 'auto' ? undefined : persisted.preferredSide
+        });
+      }
     });
 
     socket.on('disconnect', () => {
       setIsConnected(false);
       setIsConnecting(false);
+      hasAttemptedRestoreRef.current = false;
       setMessage('Signal lost. The den link dropped.');
     });
 
@@ -121,6 +284,17 @@ export default function App() {
       setRoom(snapshot);
       setPlayerColor(yourColor);
       setSelected(null);
+      setActiveDenName(snapshot.name ?? (denNameInput.trim() || null));
+      const nextForcedCaptures = snapshot.rules?.forcedCaptures ?? forcedCapturesInput;
+      setRoomForcedCaptures(nextForcedCaptures);
+      persistSession({
+        roomCode: snapshot.roomCode,
+        playerName,
+        password: roomPasswordInput,
+        denName: snapshot.name ?? denNameInput,
+        preferredSide,
+        forcedCaptures: nextForcedCaptures
+      });
       setMessage(`Den ${snapshot.roomCode} is live. Waiting for a rival.`);
     });
 
@@ -128,11 +302,28 @@ export default function App() {
       setRoom(snapshot);
       setPlayerColor(yourColor);
       setSelected(null);
+      setActiveDenName(snapshot.name ?? (denNameInput.trim() || null));
+      const nextForcedCaptures = snapshot.rules?.forcedCaptures ?? forcedCapturesInput;
+      setRoomForcedCaptures(nextForcedCaptures);
+      persistSession({
+        roomCode: snapshot.roomCode,
+        playerName,
+        password: roomPasswordInput,
+        denName: snapshot.name ?? denNameInput,
+        preferredSide,
+        forcedCaptures: nextForcedCaptures
+      });
       setMessage(`Entered den ${snapshot.roomCode}. ${getColorLabel(snapshot.state.turn)} moves first.`);
     });
 
     socket.on('room:update', (snapshot: RoomSnapshot) => {
       setRoom(snapshot);
+      if (snapshot.name) {
+        setActiveDenName(snapshot.name);
+      }
+      if (typeof snapshot.rules?.forcedCaptures === 'boolean') {
+        setRoomForcedCaptures(snapshot.rules.forcedCaptures);
+      }
 
       if (snapshot.state.winner) {
         setMessage(`${getColorLabel(snapshot.state.winner)} controls the grid.`);
@@ -150,7 +341,10 @@ export default function App() {
     socket.on('room:left', () => {
       setRoom(null);
       setPlayerColor(null);
+      setActiveDenName(null);
+      setRoomForcedCaptures(null);
       setSelected(null);
+      clearSessionPersistence();
       setMessage('You left the den.');
     });
   }
@@ -190,7 +384,16 @@ export default function App() {
     }
 
     const socket = ensureSocket();
-    socket.emit('room:create', { name: playerName });
+    const trimmedDenName = denNameInput.trim();
+    const password = roomPasswordInput.trim();
+    setRoomForcedCaptures(forcedCapturesInput);
+    socket.emit('room:create', {
+      name: playerName,
+      roomName: trimmedDenName || undefined,
+      password: password || undefined,
+      preferredColor: preferredSide === 'auto' ? undefined : preferredSide,
+      forcedCaptures: forcedCapturesInput
+    });
   }
 
   function handleJoinRoom() {
@@ -206,15 +409,34 @@ export default function App() {
       return;
     }
 
+    const password = roomPasswordInput.trim();
+    const sessionForRestore: StoredSession = {
+      roomCode: code,
+      playerName,
+      password,
+      denName: denNameInput,
+      preferredSide,
+      forcedCaptures: forcedCapturesInput
+    };
+    persistSession(sessionForRestore);
+
     const socket = ensureSocket();
-    socket.emit('room:join', { roomCode: code, name: playerName });
+    socket.emit('room:join', {
+      roomCode: code,
+      name: playerName,
+      password: password || undefined,
+      preferredColor: preferredSide === 'auto' ? undefined : preferredSide
+    });
   }
 
   function handleLeaveRoom() {
     socketRef.current?.emit('room:leave');
     setRoom(null);
     setPlayerColor(null);
+    setActiveDenName(null);
+    setRoomForcedCaptures(null);
     setSelected(null);
+    clearSessionPersistence();
   }
 
   function handleRestart() {
@@ -256,7 +478,7 @@ export default function App() {
       return;
     }
 
-    const pieceMoves = getLegalMoves(room.state, position);
+    const pieceMoves = getLegalMoves(room.state, position, { forcedCaptures: activeForcedCaptures });
     if (pieceMoves.length === 0) {
       setMessage('That piece has no legal move.');
       return;
@@ -296,8 +518,28 @@ export default function App() {
               <input value={playerName} onChange={(event) => setPlayerName(event.target.value)} maxLength={24} />
             </label>
             <label>
+              <span className="label">Den name</span>
+              <input value={denNameInput} onChange={(event) => setDenNameInput(event.target.value)} maxLength={36} placeholder="My cozy den" />
+            </label>
+            <label>
               <span className="label">Den code</span>
               <input value={roomCodeInput} onChange={(event) => setRoomCodeInput(event.target.value.toUpperCase())} maxLength={5} placeholder="ABCDE" />
+            </label>
+            <label>
+              <span className="label">Password</span>
+              <input type="password" value={roomPasswordInput} onChange={(event) => setRoomPasswordInput(event.target.value)} maxLength={32} placeholder="Optional" />
+            </label>
+            <label>
+              <span className="label">Preferred side</span>
+              <select value={preferredSide} onChange={(event) => setPreferredSide(event.target.value as SidePreference)}>
+                <option value="auto">Auto assign</option>
+                <option value="red">Violet</option>
+                <option value="black">Azure</option>
+              </select>
+            </label>
+            <label className="checkbox-row">
+              <input type="checkbox" checked={forcedCapturesInput} onChange={(event) => setForcedCapturesInput(event.target.checked)} />
+              <span>Force jumps</span>
             </label>
             <div className="button-row">
               <button type="button" onClick={handleCreateRoom} disabled={!canInteractWithServer}>Open den</button>
@@ -316,6 +558,14 @@ export default function App() {
             <strong>{room?.roomCode ?? '—'}</strong>
           </div>
           <div className="status-row">
+            <span className="label">Den name</span>
+            <strong>{activeDenName ?? room?.name ?? '—'}</strong>
+          </div>
+          <div className="status-row">
+            <span className="label">Password</span>
+            <strong>{room?.hasPassword || roomPasswordInput ? 'protected' : 'open'}</strong>
+          </div>
+          <div className="status-row">
             <span className="label">Violet</span>
             <strong>{room?.players.red ?? 'Open'}</strong>
           </div>
@@ -330,6 +580,10 @@ export default function App() {
           <div className="status-row">
             <span className="label">Combo</span>
             <strong>{room?.state.mustContinueFrom ? 'Active' : '—'}</strong>
+          </div>
+          <div className="status-row">
+            <span className="label">Forced jumps</span>
+            <strong>{activeForcedCaptures ? 'on' : 'off'}</strong>
           </div>
         </div>
 
@@ -353,7 +607,9 @@ export default function App() {
           <p className="hint">
             {room && !hasBothPlayers
               ? 'Waiting for another player to join this den before the game starts.'
-              : 'Select a piece, then tap a lit square to move. Captures are forced.'}
+              : activeForcedCaptures
+                ? 'Select a piece, then tap a lit square to move. Captures are forced.'
+                : 'Select a piece, then tap a lit square to move. Captures are optional.'}
           </p>
         </header>
 
