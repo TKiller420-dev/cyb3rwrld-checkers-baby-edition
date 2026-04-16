@@ -6,6 +6,12 @@ import { CheckersScene } from './game/CheckersScene';
 
 const DEFAULT_SERVER_URL = 'https://217-216-40-246.sslip.io';
 const SERVER_URL = import.meta.env.VITE_SERVER_URL?.trim() || DEFAULT_SERVER_URL;
+const FALLBACK_SERVER_URLS = [
+  SERVER_URL,
+  'https://217-216-40-246.sslip.io/checkers',
+  'https://217-216-40-246.sslip.io',
+  'http://217.216.40.246:4000'
+].filter((value, index, all) => Boolean(value) && all.indexOf(value) === index);
 
 const STORAGE_KEYS = {
   playerName: 'checkers.playerName',
@@ -159,6 +165,7 @@ export default function App() {
 
   const socketRef = useRef<Socket | null>(null);
   const socketUrlRef = useRef<string | null>(null);
+  const serverUrlIndexRef = useRef(0);
   const restoredSessionRef = useRef<StoredSession | null>(readStoredSession());
   const hasAttemptedRestoreRef = useRef(false);
 
@@ -237,6 +244,12 @@ export default function App() {
     socket.on('connect', () => {
       setIsConnected(true);
       setIsConnecting(false);
+      if (socketUrlRef.current) {
+        const matchedIndex = FALLBACK_SERVER_URLS.indexOf(socketUrlRef.current);
+        if (matchedIndex >= 0) {
+          serverUrlIndexRef.current = matchedIndex;
+        }
+      }
       setMessage((currentMessage) =>
         currentMessage === 'Connecting to the den network...' || currentMessage.startsWith('Unable to reach the den network')
           ? 'Connected. Open a den or enter one with a code.'
@@ -272,7 +285,20 @@ export default function App() {
     socket.on('connect_error', (error) => {
       setIsConnected(false);
       setIsConnecting(false);
-      const { origin, path } = getSocketConnectionConfig(SERVER_URL);
+      const currentIndex = FALLBACK_SERVER_URLS.findIndex((url) => url === socketUrlRef.current);
+      const nextIndex = currentIndex >= 0 ? currentIndex + 1 : serverUrlIndexRef.current + 1;
+      const nextUrl = FALLBACK_SERVER_URLS[nextIndex];
+
+      if (nextUrl) {
+        serverUrlIndexRef.current = nextIndex;
+        const { origin, path } = getSocketConnectionConfig(nextUrl);
+        setMessage(`Unable to reach den network at ${origin}${path} (${error.message}). Trying fallback ${nextIndex + 1}/${FALLBACK_SERVER_URLS.length}...`);
+        ensureSocket(nextUrl);
+        return;
+      }
+
+      const failedUrl = socketUrlRef.current ?? SERVER_URL;
+      const { origin, path } = getSocketConnectionConfig(failedUrl);
       setMessage(`Unable to reach den network at ${origin}${path} (${error.message}).`);
     });
 
@@ -349,8 +375,8 @@ export default function App() {
     });
   }
 
-  function ensureSocket() {
-    if (socketRef.current && socketUrlRef.current === SERVER_URL) {
+  function ensureSocket(targetUrl = FALLBACK_SERVER_URLS[serverUrlIndexRef.current] ?? SERVER_URL) {
+    if (socketRef.current && socketUrlRef.current === targetUrl) {
       if (!socketRef.current.connected && !socketRef.current.active) {
         setIsConnecting(true);
         socketRef.current.connect();
@@ -363,7 +389,7 @@ export default function App() {
     setIsConnected(false);
     setMessage('Connecting to the den network...');
 
-    const { origin, path } = getSocketConnectionConfig(SERVER_URL);
+    const { origin, path } = getSocketConnectionConfig(targetUrl);
 
     const socket = io(origin, {
       autoConnect: true,
@@ -371,7 +397,7 @@ export default function App() {
     });
 
     socketRef.current = socket;
-    socketUrlRef.current = SERVER_URL;
+    socketUrlRef.current = targetUrl;
     bindSocket(socket);
     return socket;
   }
