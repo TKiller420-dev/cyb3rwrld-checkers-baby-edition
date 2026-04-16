@@ -56,14 +56,23 @@ function HeartBadge({ color }: { color: string }) {
     shape.bezierCurveTo(0.6, -0.03, 0.3, -0.4, 0, -0.14);
     return shape;
   }, []);
+  const heartRef = useRef<Mesh>(null);
+
+  useFrame((state) => {
+    const t = state.clock.getElapsedTime();
+    if (heartRef.current) {
+      heartRef.current.rotation.y = Math.sin(t * 1.8) * 0.18;
+      heartRef.current.position.y = 0.1 + Math.sin(t * 3.2) * 0.01;
+    }
+  });
 
   return (
-    <group position={[0, 0.12, 0]}>
+    <group position={[0, 0.11, 0]}>
       <mesh castShadow position={[0, -0.015, 0]}>
         <cylinderGeometry args={[0.18, 0.18, 0.03, 24]} />
         <meshStandardMaterial color="#1f1f38" emissive="#2b2b4f" emissiveIntensity={0.2} />
       </mesh>
-      <mesh castShadow position={[0, 0.02, 0]} rotation={[-Math.PI / 2, 0, 0]} scale={[0.24, 0.24, 0.24]}>
+      <mesh ref={heartRef} castShadow position={[0, 0.1, 0]} scale={[0.24, 0.24, 0.24]}>
         <extrudeGeometry args={[heartShape, { depth: 0.06, bevelEnabled: true, bevelThickness: 0.01, bevelSize: 0.01, bevelSegments: 2 }]} />
         <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.26} />
       </mesh>
@@ -71,8 +80,28 @@ function HeartBadge({ color }: { color: string }) {
   );
 }
 
-function FoxCompanion({ phase = 0, speed = 0.045 }: { phase?: number; speed?: number }) {
+function FoxCompanion({ phase = 0, speed = 0.045, variant = 'orange' }: { phase?: number; speed?: number; variant?: 'orange' | 'purple' }) {
   const foxRef = useRef<Group>(null);
+  const bodyRef = useRef<Group>(null);
+  const frontLeftLegRef = useRef<Group>(null);
+  const frontRightLegRef = useRef<Group>(null);
+  const backLeftLegRef = useRef<Group>(null);
+  const backRightLegRef = useRef<Group>(null);
+  const tailRef = useRef<Mesh>(null);
+
+  const palette = variant === 'purple'
+    ? {
+        body: '#7b63d6',
+        head: '#977df2',
+        limb: '#5f49b7',
+        tail: '#8d73e8'
+      }
+    : {
+        body: '#f58a3c',
+        head: '#ff9f4c',
+        limb: '#d06f2f',
+        tail: '#f38a39'
+      };
 
   useFrame((state) => {
     if (!foxRef.current) {
@@ -109,59 +138,86 @@ function FoxCompanion({ phase = 0, speed = 0.045 }: { phase?: number; speed?: nu
     const bob = Math.sin(state.clock.getElapsedTime() * 10 + phase * 10) * 0.025;
     foxRef.current.position.set(x, 0.12 + bob, z);
     foxRef.current.rotation.y = heading;
+
+    const tAbs = state.clock.getElapsedTime();
+    const walk = Math.sin(tAbs * 12 + phase * 12) * 0.55;
+    const counterWalk = Math.sin(tAbs * 12 + phase * 12 + Math.PI) * 0.55;
+
+    if (bodyRef.current) {
+      bodyRef.current.rotation.z = Math.sin(tAbs * 8 + phase * 8) * 0.04;
+    }
+
+    if (frontLeftLegRef.current) {
+      frontLeftLegRef.current.rotation.x = walk;
+    }
+    if (frontRightLegRef.current) {
+      frontRightLegRef.current.rotation.x = counterWalk;
+    }
+    if (backLeftLegRef.current) {
+      backLeftLegRef.current.rotation.x = counterWalk;
+    }
+    if (backRightLegRef.current) {
+      backRightLegRef.current.rotation.x = walk;
+    }
+
+    if (tailRef.current) {
+      tailRef.current.rotation.y = -0.2 + Math.sin(tAbs * 7 + phase * 5) * 0.32;
+    }
   });
 
   return (
     <group ref={foxRef}>
-      <mesh castShadow position={[0, 0.3, 0.02]}>
-        <sphereGeometry args={[0.3, 22, 22]} />
-        <meshStandardMaterial color="#f58a3c" roughness={0.45} />
-      </mesh>
-      <mesh castShadow position={[0, 0.62, 0.2]}>
-        <sphereGeometry args={[0.24, 22, 22]} />
-        <meshStandardMaterial color="#ff9f4c" roughness={0.4} />
-      </mesh>
-      <mesh castShadow position={[-0.12, 0.83, 0.14]} rotation={[0, 0, 0.2]}>
-        <coneGeometry args={[0.08, 0.18, 20]} />
-        <meshStandardMaterial color="#ff9f4c" />
-      </mesh>
-      <mesh castShadow position={[0.12, 0.83, 0.14]} rotation={[0, 0, -0.2]}>
-        <coneGeometry args={[0.08, 0.18, 20]} />
-        <meshStandardMaterial color="#ff9f4c" />
-      </mesh>
-      <mesh castShadow position={[0, 0.57, 0.4]}>
-        <sphereGeometry args={[0.11, 16, 16]} />
-        <meshStandardMaterial color="#fff3e2" roughness={0.5} />
-      </mesh>
-      <mesh castShadow position={[-0.14, 0.1, 0.21]}>
-        <capsuleGeometry args={[0.06, 0.12, 6, 12]} />
-        <meshStandardMaterial color="#e77a2c" />
-      </mesh>
-      <mesh castShadow position={[0.14, 0.1, 0.21]}>
-        <capsuleGeometry args={[0.06, 0.12, 6, 12]} />
-        <meshStandardMaterial color="#e77a2c" />
-      </mesh>
-      <mesh castShadow position={[-0.22, 0.26, -0.18]} rotation={[0.2, 0, -0.9]}>
-        <capsuleGeometry args={[0.08, 0.26, 8, 16]} />
-        <meshStandardMaterial color="#f38a39" />
-      </mesh>
+      <group ref={bodyRef}>
+        <mesh castShadow position={[0, 0.3, 0.02]}>
+          <sphereGeometry args={[0.3, 22, 22]} />
+          <meshStandardMaterial color={palette.body} roughness={0.45} />
+        </mesh>
+        <mesh castShadow position={[0, 0.62, 0.2]}>
+          <sphereGeometry args={[0.24, 22, 22]} />
+          <meshStandardMaterial color={palette.head} roughness={0.4} />
+        </mesh>
+        <mesh castShadow position={[-0.12, 0.83, 0.14]} rotation={[0, 0, 0.2]}>
+          <coneGeometry args={[0.08, 0.18, 20]} />
+          <meshStandardMaterial color={palette.head} />
+        </mesh>
+        <mesh castShadow position={[0.12, 0.83, 0.14]} rotation={[0, 0, -0.2]}>
+          <coneGeometry args={[0.08, 0.18, 20]} />
+          <meshStandardMaterial color={palette.head} />
+        </mesh>
+        <mesh castShadow position={[0, 0.57, 0.4]}>
+          <sphereGeometry args={[0.11, 16, 16]} />
+          <meshStandardMaterial color="#fff3e2" roughness={0.5} />
+        </mesh>
+        <mesh ref={tailRef} castShadow position={[-0.22, 0.26, -0.18]} rotation={[0.2, -0.2, -0.9]}>
+          <capsuleGeometry args={[0.08, 0.26, 8, 16]} />
+          <meshStandardMaterial color={palette.tail} />
+        </mesh>
 
-      <mesh castShadow position={[-0.14, 0.02, 0.2]}>
-        <capsuleGeometry args={[0.045, 0.1, 5, 10]} />
-        <meshStandardMaterial color="#d06f2f" />
-      </mesh>
-      <mesh castShadow position={[0.14, 0.02, 0.2]}>
-        <capsuleGeometry args={[0.045, 0.1, 5, 10]} />
-        <meshStandardMaterial color="#d06f2f" />
-      </mesh>
-      <mesh castShadow position={[-0.14, 0.02, -0.02]}>
-        <capsuleGeometry args={[0.045, 0.1, 5, 10]} />
-        <meshStandardMaterial color="#d06f2f" />
-      </mesh>
-      <mesh castShadow position={[0.14, 0.02, -0.02]}>
-        <capsuleGeometry args={[0.045, 0.1, 5, 10]} />
-        <meshStandardMaterial color="#d06f2f" />
-      </mesh>
+        <group ref={frontLeftLegRef} position={[-0.14, 0.11, 0.2]}>
+          <mesh castShadow position={[0, -0.06, 0]}>
+            <capsuleGeometry args={[0.045, 0.1, 5, 10]} />
+            <meshStandardMaterial color={palette.limb} />
+          </mesh>
+        </group>
+        <group ref={frontRightLegRef} position={[0.14, 0.11, 0.2]}>
+          <mesh castShadow position={[0, -0.06, 0]}>
+            <capsuleGeometry args={[0.045, 0.1, 5, 10]} />
+            <meshStandardMaterial color={palette.limb} />
+          </mesh>
+        </group>
+        <group ref={backLeftLegRef} position={[-0.14, 0.11, -0.02]}>
+          <mesh castShadow position={[0, -0.06, 0]}>
+            <capsuleGeometry args={[0.045, 0.1, 5, 10]} />
+            <meshStandardMaterial color={palette.limb} />
+          </mesh>
+        </group>
+        <group ref={backRightLegRef} position={[0.14, 0.11, -0.02]}>
+          <mesh castShadow position={[0, -0.06, 0]}>
+            <capsuleGeometry args={[0.045, 0.1, 5, 10]} />
+            <meshStandardMaterial color={palette.limb} />
+          </mesh>
+        </group>
+      </group>
     </group>
   );
 }
@@ -226,7 +282,7 @@ function BoardScene({ state, localColor, selected, legalMoves, onSquareClick }: 
       ))}
 
       <FoxCompanion phase={0} speed={0.047} />
-      <FoxCompanion phase={0.5} speed={0.047} />
+      <FoxCompanion phase={0.5} speed={0.047} variant="purple" />
 
       <mesh position={[0, -0.02, 0]} receiveShadow>
         <cylinderGeometry args={[5.3, 5.3, 0.05, 40]} />
