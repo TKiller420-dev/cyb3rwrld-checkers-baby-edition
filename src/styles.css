@@ -2,17 +2,17 @@
 
 :root {
   color-scheme: dark;
-  --bg: #070b18;
-  --panel: rgba(13, 18, 39, 0.82);
-  --panel-strong: rgba(17, 23, 49, 0.94);
-  --line: rgba(90, 121, 255, 0.18);
-  --text: #edf3ff;
-  --muted: #97a9d3;
-  --accent: #ff7a1a;
-  --accent-strong: #ff4d00;
-  --accent-soft: #ffb16a;
-  --violet: #8b5cf6;
-  --blue: #2f7bff;
+  --bg: #151a36;
+  --panel: rgba(37, 31, 81, 0.82);
+  --panel-strong: rgba(45, 36, 99, 0.94);
+  --line: rgba(145, 132, 255, 0.28);
+  --text: #f4f2ff;
+  --muted: #c1bbea;
+  --accent: #8b86ff;
+  --accent-strong: #6040d8;
+  --accent-soft: #a99aff;
+  --violet: #8f5dff;
+  --blue: #7e8dff;
   --shadow: 0 24px 64px rgba(0, 0, 0, 0.42);
 }
 
@@ -31,10 +31,10 @@ body {
   font-family: 'Space Grotesk', sans-serif;
   color: var(--text);
   background:
-    radial-gradient(circle at top left, rgba(255, 122, 26, 0.18), transparent 24%),
-    radial-gradient(circle at 78% 18%, rgba(139, 92, 246, 0.24), transparent 22%),
-    radial-gradient(circle at bottom right, rgba(47, 123, 255, 0.18), transparent 25%),
-    linear-gradient(135deg, #060914 0%, #0b1122 42%, #0f1630 100%);
+    radial-gradient(circle at top left, rgba(169, 154, 255, 0.2), transparent 24%),
+    radial-gradient(circle at 78% 18%, rgba(143, 93, 255, 0.28), transparent 22%),
+    radial-gradient(circle at bottom right, rgba(126, 141, 255, 0.22), transparent 25%),
+    linear-gradient(135deg, #0f1230 0%, #1b1f4a 42%, #281f56 100%);
 }
 
 button,
@@ -48,11 +48,11 @@ button {
   padding: 0.9rem 1.2rem;
   cursor: pointer;
   background: linear-gradient(135deg, var(--accent) 0%, var(--accent-strong) 100%);
-  color: #fff8ef;
+  color: #f8f6ff;
   font-weight: 700;
   letter-spacing: 0.02em;
   transition: transform 140ms ease, box-shadow 140ms ease, opacity 140ms ease;
-  box-shadow: 0 16px 32px rgba(255, 77, 0, 0.24);
+  box-shadow: 0 16px 32px rgba(96, 64, 216, 0.32);
 }
 
 button:hover:not(:disabled) {
@@ -65,23 +65,23 @@ button:disabled {
 }
 
 button.secondary {
-  background: rgba(72, 92, 180, 0.16);
-  color: #dce7ff;
+  background: rgba(130, 118, 255, 0.2);
+  color: #e9e5ff;
   box-shadow: none;
 }
 
 input {
   width: 100%;
-  border: 1px solid rgba(88, 112, 222, 0.26);
-  background: rgba(8, 12, 27, 0.94);
+  border: 1px solid rgba(150, 133, 255, 0.32);
+  background: rgba(23, 20, 47, 0.92);
   border-radius: 18px;
   padding: 0.95rem 1rem;
   color: var(--text);
 }
 
 input:focus {
-  outline: 2px solid rgba(255, 122, 26, 0.25);
-  border-color: rgba(255, 122, 26, 0.48);
+  outline: 2px solid rgba(141, 128, 255, 0.35);
+  border-color: rgba(141, 128, 255, 0.56);
 }
 
 .app-shell {
@@ -180,7 +180,7 @@ h2 {
 }
 
 .connection-dot.connecting {
-  background: #facc15;
+  background: #8f5dff;
   animation: blink 1.2s ease-in-out infinite;
 }
 
@@ -198,7 +198,7 @@ h2 {
   width: 94px;
   height: 74px;
   margin-top: 0.75rem;
-  filter: drop-shadow(0 0 18px rgba(255, 122, 26, 0.24));
+  filter: drop-shadow(0 0 18px rgba(141, 128, 255, 0.35));
   animation: foxFloat 2.8s ease-in-out infinite;
 }
 
@@ -217,7 +217,7 @@ h2 {
   top: 0;
   width: 28px;
   height: 28px;
-  background: linear-gradient(180deg, #ff9b44 0%, #ff5c00 100%);
+  background: linear-gradient(180deg, #9c8bff 0%, #6f4be8 100%);
   clip-path: polygon(50% 0%, 100% 100%, 0% 100%);
 }
 
@@ -239,8 +239,8 @@ h2 {
   display: block;
   transform: translateX(-50%);
   background:
-    radial-gradient(circle at 50% 70%, rgba(255, 244, 230, 0.94) 0 10px, transparent 11px),
-    linear-gradient(180deg, #ff8b2b 0%, #ff5a00 100%);
+    radial-gradient(circle at 50% 70%, rgba(244, 238, 255, 0.94) 0 10px, transparent 11px),
+    linear-gradient(180deg, #9784ff 0%, #5b3dd1 100%);
   clip-path: polygon(50% 10%, 100% 48%, 76% 100%, 24% 100%, 0% 48%);
 }
 
@@ -284,7 +284,7 @@ h2 {
   height: 14px;
   transform: translateX(-50%);
   border-radius: 50%;
-  background: radial-gradient(circle at center, rgba(255, 160, 75, 0.48) 0%, rgba(255, 120, 0, 0.05) 72%);
+  background: radial-gradient(circle at center, rgba(150, 131, 255, 0.58) 0%, rgba(91, 61, 209, 0.08) 72%);
 }
 
 .form-card {
@@ -352,8 +352,8 @@ h2 {
   border-radius: 36px;
   overflow: hidden;
   background:
-    linear-gradient(180deg, rgba(8, 12, 27, 0.96) 0%, rgba(12, 18, 40, 0.98) 100%),
-    radial-gradient(circle at top, rgba(255, 122, 26, 0.12), transparent 40%);
+    linear-gradient(180deg, rgba(21, 19, 49, 0.96) 0%, rgba(34, 29, 73, 0.98) 100%),
+    radial-gradient(circle at top, rgba(143, 93, 255, 0.22), transparent 42%);
 }
 
 @media (max-width: 1080px) {
