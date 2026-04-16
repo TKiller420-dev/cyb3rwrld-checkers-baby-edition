@@ -285,11 +285,6 @@ function BoardScene({ state, localColor, selected, legalMoves, onSquareClick }: 
       <FoxCompanion phase={0} speed={0.047} />
       <FoxCompanion phase={0.5} speed={0.047} variant="purple" />
 
-      <mesh position={[0, -0.02, 0]} receiveShadow>
-        <cylinderGeometry args={[5.3, 5.3, 0.05, 40]} />
-        <meshStandardMaterial color="#31254a" emissive="#1d1530" emissiveIntensity={0.28} transparent opacity={0.9} />
-      </mesh>
-
       {displayState.board.map((row, rowIndex) =>
         row.map((piece, colIndex) => {
           const squarePosition: Position = { row: rowIndex, col: colIndex };
@@ -357,7 +352,7 @@ function BoardScene({ state, localColor, selected, legalMoves, onSquareClick }: 
 
 export function CheckersScene(props: CheckersSceneProps) {
   return (
-    <Canvas shadows camera={{ position: [0, 8.5, 8.2], fov: 38 }}>
+    <Canvas shadows camera={{ position: [0, 10.2, 10.1], fov: 44 }}>
       <color attach="background" args={['#1c2550']} />
       <fog attach="fog" args={['#1c2550', 10, 22]} />
       <ambientLight intensity={0.42} color="#b5c6ff" />
@@ -366,7 +361,7 @@ export function CheckersScene(props: CheckersSceneProps) {
       <AnimatedLights />
       <Sparkles count={56} scale={[10.2, 3.6, 10.2]} size={2.8} speed={0.34} opacity={0.72} color="#ffd39b" noise={0.3} />
       <BoardScene {...props} />
-      <OrbitControls enablePan={false} minDistance={8.5} maxDistance={12} minPolarAngle={0.65} maxPolarAngle={1.25} />
+      <OrbitControls enablePan={false} minDistance={10.5} maxDistance={14} minPolarAngle={0.62} maxPolarAngle={1.2} />
     </Canvas>
   );
 }
