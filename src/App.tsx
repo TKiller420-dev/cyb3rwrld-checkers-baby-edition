@@ -34,6 +34,27 @@ type StoredSession = {
   forcedCaptures: boolean;
 };
 
+type PendingAction =
+  | {
+      type: 'create';
+      payload: {
+        name: string;
+        roomName?: string;
+        password?: string;
+        preferredColor?: Color;
+        forcedCaptures: boolean;
+      };
+    }
+  | {
+      type: 'join';
+      payload: {
+        roomCode: string;
+        name: string;
+        password?: string;
+        preferredColor?: Color;
+      };
+    };
+
 function getSocketConnectionConfig(rawUrl: string) {
   try {
     const parsed = new URL(rawUrl);
@@ -165,6 +186,7 @@ export default function App() {
 
   const socketRef = useRef<Socket | null>(null);
   const socketUrlRef = useRef<string | null>(null);
+  const pendingActionRef = useRef<PendingAction | null>(null);
   const serverUrlIndexRef = useRef(0);
   const restoredSessionRef = useRef<StoredSession | null>(readStoredSession());
   const hasAttemptedRestoreRef = useRef(false);
@@ -228,6 +250,7 @@ export default function App() {
   const legalMoves = room && selected ? getLegalMoves(room.state, selected, { forcedCaptures: activeForcedCaptures }) : [];
   const isMyTurn = Boolean(room && playerColor && hasBothPlayers && room.state.turn === playerColor && !room.state.winner);
   const canInteractWithServer = isConnected && !isConnecting;
+  const canInteractWithBoard = Boolean(room && playerColor && hasBothPlayers && isMyTurn);
 
   function persistSession(nextSession: StoredSession) {
     restoredSessionRef.current = nextSession;
@@ -244,6 +267,20 @@ export default function App() {
     socket.on('connect', () => {
       setIsConnected(true);
       setIsConnecting(false);
+
+      if (pendingActionRef.current) {
+        const pending = pendingActionRef.current;
+        pendingActionRef.current = null;
+        hasAttemptedRestoreRef.current = true;
+        if (pending.type === 'create') {
+          socket.emit('room:create', pending.payload);
+          setMessage('Connected. Opening your den...');
+        } else {
+          socket.emit('room:join', pending.payload);
+          setMessage(`Connected. Entering den ${pending.payload.roomCode}...`);
+        }
+      }
+
       if (socketUrlRef.current) {
         const matchedIndex = FALLBACK_SERVER_URLS.indexOf(socketUrlRef.current);
         if (matchedIndex >= 0) {
@@ -256,7 +293,7 @@ export default function App() {
           : currentMessage
       );
 
-      if (!hasAttemptedRestoreRef.current && !room && restoredSessionRef.current) {
+      if (!pendingActionRef.current && !hasAttemptedRestoreRef.current && !room && restoredSessionRef.current) {
         hasAttemptedRestoreRef.current = true;
         const persisted = restoredSessionRef.current;
         setPlayerName(persisted.playerName);
@@ -307,6 +344,7 @@ export default function App() {
     });
 
     socket.on('room:created', ({ snapshot, yourColor }: JoinPayload) => {
+      pendingActionRef.current = null;
       setRoom(snapshot);
       setPlayerColor(yourColor);
       setSelected(null);
@@ -325,6 +363,7 @@ export default function App() {
     });
 
     socket.on('room:joined', ({ snapshot, yourColor }: JoinPayload) => {
+      pendingActionRef.current = null;
       setRoom(snapshot);
       setPlayerColor(yourColor);
       setSelected(null);
@@ -365,6 +404,7 @@ export default function App() {
     });
 
     socket.on('room:left', () => {
+      pendingActionRef.current = null;
       setRoom(null);
       setPlayerColor(null);
       setActiveDenName(null);
@@ -403,23 +443,30 @@ export default function App() {
   }
 
   function handleCreateRoom() {
-    if (!canInteractWithServer) {
-      setMessage('The den network is offline right now. Start the VPS server, then try again.');
-      ensureSocket();
-      return;
-    }
-
-    const socket = ensureSocket();
     const trimmedDenName = denNameInput.trim();
     const password = roomPasswordInput.trim();
-    setRoomForcedCaptures(forcedCapturesInput);
-    socket.emit('room:create', {
+    const createPayload = {
       name: playerName,
       roomName: trimmedDenName || undefined,
       password: password || undefined,
       preferredColor: preferredSide === 'auto' ? undefined : preferredSide,
       forcedCaptures: forcedCapturesInput
-    });
+    };
+
+    if (!canInteractWithServer) {
+      pendingActionRef.current = {
+        type: 'create',
+        payload: createPayload
+      };
+      hasAttemptedRestoreRef.current = true;
+      setMessage('Reconnecting... your den will open when the link is back.');
+      ensureSocket();
+      return;
+    }
+
+    const socket = ensureSocket();
+    setRoomForcedCaptures(forcedCapturesInput);
+    socket.emit('room:create', createPayload);
   }
 
   function handleJoinRoom() {
@@ -429,13 +476,25 @@ export default function App() {
       return;
     }
 
+    const password = roomPasswordInput.trim();
+    const joinPayload = {
+      roomCode: code,
+      name: playerName,
+      password: password || undefined,
+      preferredColor: preferredSide === 'auto' ? undefined : preferredSide
+    };
+
     if (!canInteractWithServer) {
-      setMessage('The den network is offline right now. Start the VPS server, then try again.');
+      pendingActionRef.current = {
+        type: 'join',
+        payload: joinPayload
+      };
+      hasAttemptedRestoreRef.current = true;
+      setMessage(`Reconnecting... joining den ${code} when the link returns.`);
       ensureSocket();
       return;
     }
 
-    const password = roomPasswordInput.trim();
     const sessionForRestore: StoredSession = {
       roomCode: code,
       playerName,
@@ -447,12 +506,7 @@ export default function App() {
     persistSession(sessionForRestore);
 
     const socket = ensureSocket();
-    socket.emit('room:join', {
-      roomCode: code,
-      name: playerName,
-      password: password || undefined,
-      preferredColor: preferredSide === 'auto' ? undefined : preferredSide
-    });
+    socket.emit('room:join', joinPayload);
   }
 
   function handleLeaveRoom() {
@@ -568,8 +622,8 @@ export default function App() {
               <span>Force jumps</span>
             </label>
             <div className="button-row">
-              <button type="button" onClick={handleCreateRoom} disabled={!canInteractWithServer}>Open den</button>
-              <button type="button" className="secondary" onClick={handleJoinRoom} disabled={!canInteractWithServer}>Enter den</button>
+              <button type="button" onClick={handleCreateRoom}>Open den</button>
+              <button type="button" className="secondary" onClick={handleJoinRoom}>Enter den</button>
             </div>
           </div>
         ) : null}
@@ -645,6 +699,7 @@ export default function App() {
             localColor={playerColor}
             selected={selected}
             legalMoves={legalMoves}
+            canInteract={canInteractWithBoard}
             onSquareClick={handleSquareClick}
           />
         </div>

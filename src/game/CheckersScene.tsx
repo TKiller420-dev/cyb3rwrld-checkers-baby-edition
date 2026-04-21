@@ -10,6 +10,7 @@ type CheckersSceneProps = {
   localColor: Color | null;
   selected: Position | null;
   legalMoves: Move[];
+  canInteract?: boolean;
   onSquareClick: (position: Position) => void;
 };
 
@@ -254,7 +255,7 @@ function AnimatedLights() {
   );
 }
 
-function BoardScene({ state, localColor, selected, legalMoves, onSquareClick }: CheckersSceneProps) {
+function BoardScene({ state, localColor, selected, legalMoves, canInteract = true, onSquareClick }: CheckersSceneProps) {
   const displayState = state ?? createInitialState();
   const rotation = localColor === 'black' ? Math.PI : 0;
 
@@ -262,12 +263,12 @@ function BoardScene({ state, localColor, selected, legalMoves, onSquareClick }: 
     <group rotation={[0, rotation, 0]}>
       <mesh position={[0, -0.28, 0]} receiveShadow>
         <boxGeometry args={[9.4, 0.4, 9.4]} />
-        <meshStandardMaterial color="#a57443" roughness={0.66} />
+        <meshStandardMaterial color="#121018" roughness={0.72} />
       </mesh>
 
       <mesh position={[0, -1.62, 0]} receiveShadow>
         <boxGeometry args={[10.8, 0.5, 10.8]} />
-        <meshStandardMaterial color="#7c4d28" roughness={0.72} />
+        <meshStandardMaterial color="#0c0b12" roughness={0.75} />
       </mesh>
 
       {[
@@ -278,7 +279,7 @@ function BoardScene({ state, localColor, selected, legalMoves, onSquareClick }: 
       ].map((position) => (
         <mesh key={position.join('-')} position={position as [number, number, number]} receiveShadow>
           <boxGeometry args={[0.48, 1.45, 0.48]} />
-          <meshStandardMaterial color="#684022" roughness={0.72} />
+          <meshStandardMaterial color="#171321" roughness={0.78} />
         </mesh>
       ))}
 
@@ -301,15 +302,18 @@ function BoardScene({ state, localColor, selected, legalMoves, onSquareClick }: 
                 position={[x, 0, z]}
                 receiveShadow
                 onClick={(event) => {
+                  if (!canInteract) {
+                    return;
+                  }
                   event.stopPropagation();
                   onSquareClick(squarePosition);
                 }}
               >
                 <boxGeometry args={[1, 0.18, 1]} />
                 <meshStandardMaterial
-                  color={isDark ? '#2d3a71' : '#5a6cb3'}
-                  emissive={isSelected ? '#ff7a1a' : isTarget ? '#72f2ff' : '#273359'}
-                  emissiveIntensity={isSelected ? 0.86 : isTarget ? 0.48 : 0.22}
+                  color={isDark ? '#07070b' : '#251136'}
+                  emissive={isSelected ? '#b07dff' : isTarget ? '#c688ff' : '#180b24'}
+                  emissiveIntensity={isSelected ? 0.95 : isTarget ? 0.62 : 0.26}
                 />
               </mesh>
 
@@ -319,6 +323,9 @@ function BoardScene({ state, localColor, selected, legalMoves, onSquareClick }: 
                 <group
                   position={[x, 0.23, z]}
                   onClick={(event) => {
+                    if (!canInteract) {
+                      return;
+                    }
                     event.stopPropagation();
                     onSquareClick(squarePosition);
                   }}
@@ -352,7 +359,7 @@ function BoardScene({ state, localColor, selected, legalMoves, onSquareClick }: 
 
 export function CheckersScene(props: CheckersSceneProps) {
   return (
-    <Canvas shadows camera={{ position: [0, 10.2, 10.1], fov: 44 }}>
+    <Canvas shadows camera={{ position: [0, 12.2, 12.4], fov: 44 }}>
       <color attach="background" args={['#1c2550']} />
       <fog attach="fog" args={['#1c2550', 10, 22]} />
       <ambientLight intensity={0.42} color="#b5c6ff" />
@@ -361,7 +368,7 @@ export function CheckersScene(props: CheckersSceneProps) {
       <AnimatedLights />
       <Sparkles count={56} scale={[10.2, 3.6, 10.2]} size={2.8} speed={0.34} opacity={0.72} color="#ffd39b" noise={0.3} />
       <BoardScene {...props} />
-      <OrbitControls enablePan={false} minDistance={10.5} maxDistance={14} minPolarAngle={0.62} maxPolarAngle={1.2} />
+      <OrbitControls enablePan={false} minDistance={10.5} maxDistance={20} minPolarAngle={0.62} maxPolarAngle={1.2} />
     </Canvas>
   );
 }
