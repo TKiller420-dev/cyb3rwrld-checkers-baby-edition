@@ -7,6 +7,9 @@ release-tools/
 .DS_Store
 .env
 .env.local
+.env.*
+!.env.example
+*.local
 .cache/
 .vscode/
 .idea/
@@ -14,4 +17,13 @@ release-tools/
 *.swo
 *~
 .eslintcache
+coverage/
+*.pid
+*.seed
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+secrets/
 

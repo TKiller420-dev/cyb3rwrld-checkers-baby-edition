@@ -1,7 +1,7 @@
 {
   "name": "checkers-windows-client",
   "productName": "Cyb3rWrld Checkers (Baby edition)",
-  "version": "0.1.19",
+  "version": "0.1.20",
   "description": "Cyb3rWrld Checkers (Baby edition) Windows client.",
   "author": "TKiller420-dev",
   "private": true,
@@ -49,6 +49,7 @@
     ],
     "win": {
       "signAndEditExecutable": false,
+      "icon": "build-resources/icon.ico",
       "target": [
         {
           "target": "portable",

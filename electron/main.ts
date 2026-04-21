@@ -32,6 +32,7 @@ type UpdateCheckResult = {
 let mainWindow: BrowserWindow | null = null;
 let updateCheckInFlight = false;
 let downloadedUpdatePath: string | null = null;
+let downloadedUpdateVersion: string | null = null;
 
 log.initialize();
 log.transports.file.level = 'info';
@@ -127,14 +128,16 @@ async function promptToRestartForUpdate() {
     return;
   }
 
+  const versionLabel = downloadedUpdateVersion ? `v${downloadedUpdateVersion}` : 'the latest version';
+
   const choice = await dialog.showMessageBox(mainWindow, {
     type: 'info',
     buttons: ['Restart now', 'Later'],
     defaultId: 0,
     cancelId: 1,
     title: 'Update ready',
-    message: 'A newer build of Cyb3rWrld Checkers (Baby edition) is ready.',
-    detail: 'Restart now to apply the update.'
+    message: `A newer build (${versionLabel}) of Cyb3rWrld Checkers (Baby edition) is ready.`,
+    detail: `Restart now to apply ${versionLabel}.`
   });
 
   if (choice.response === 0) {
@@ -162,9 +165,11 @@ async function checkForUpdates(manual = false): Promise<UpdateCheckResult> {
       await promptToRestartForUpdate();
     }
 
+    const versionLabel = downloadedUpdateVersion ? `v${downloadedUpdateVersion}` : 'latest version';
+
     return {
       status: 'downloaded',
-      message: 'An update is already downloaded and ready to install.'
+      message: `Update ${versionLabel} is already downloaded and ready to install.`
     };
   }
 
@@ -196,6 +201,7 @@ async function checkForUpdates(manual = false): Promise<UpdateCheckResult> {
     const updatePath = path.join(updatesDir, executableAsset.name);
     await downloadAsset(executableAsset.browser_download_url, updatePath);
     downloadedUpdatePath = updatePath;
+    downloadedUpdateVersion = latestVersion;
     log.info(`Downloaded update ${latestVersion} to ${updatePath}`);
     await promptToRestartForUpdate();
     return {
