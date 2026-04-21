@@ -53,6 +53,8 @@ type PendingAction =
       };
     };
 
+  type SocketTransportMode = 'default' | 'websocket';
+
 function getSocketConnectionConfig(rawUrl: string) {
   try {
     const parsed = new URL(rawUrl);
@@ -184,6 +186,8 @@ export default function App() {
 
   const socketRef = useRef<Socket | null>(null);
   const socketUrlRef = useRef<string | null>(null);
+  const socketTransportModeRef = useRef<SocketTransportMode>('default');
+  const websocketRetryTriedRef = useRef<Set<string>>(new Set());
   const pendingActionRef = useRef<PendingAction | null>(null);
   const serverUrlIndexRef = useRef(0);
   const restoredSessionRef = useRef<StoredSession | null>(readStoredSession());
@@ -320,6 +324,18 @@ export default function App() {
     socket.on('connect_error', (error) => {
       setIsConnected(false);
       setIsConnecting(false);
+
+      const activeUrl = socketUrlRef.current ?? SERVER_URL;
+      const { origin: activeOrigin, path: activePath } = getSocketConnectionConfig(activeUrl);
+      const isXhrPollError = /xhr\s+poll\s+error/i.test(error.message);
+
+      if (isXhrPollError && socketTransportModeRef.current !== 'websocket' && !websocketRetryTriedRef.current.has(activeUrl)) {
+        websocketRetryTriedRef.current.add(activeUrl);
+        setMessage(`Polling failed at ${activeOrigin}${activePath}. Retrying with websocket transport...`);
+        ensureSocket(activeUrl, 'websocket');
+        return;
+      }
+
       const currentIndex = FALLBACK_SERVER_URLS.findIndex((url) => url === socketUrlRef.current);
       const nextIndex = currentIndex >= 0 ? currentIndex + 1 : serverUrlIndexRef.current + 1;
       const nextUrl = FALLBACK_SERVER_URLS[nextIndex];
@@ -328,7 +344,7 @@ export default function App() {
         serverUrlIndexRef.current = nextIndex;
         const { origin, path } = getSocketConnectionConfig(nextUrl);
         setMessage(`Unable to reach den network at ${origin}${path} (${error.message}). Trying fallback ${nextIndex + 1}/${FALLBACK_SERVER_URLS.length}...`);
-        ensureSocket(nextUrl);
+        ensureSocket(nextUrl, 'default');
         return;
       }
 
@@ -413,8 +429,11 @@ export default function App() {
     });
   }
 
-  function ensureSocket(targetUrl = FALLBACK_SERVER_URLS[serverUrlIndexRef.current] ?? SERVER_URL) {
-    if (socketRef.current && socketUrlRef.current === targetUrl) {
+  function ensureSocket(
+    targetUrl = FALLBACK_SERVER_URLS[serverUrlIndexRef.current] ?? SERVER_URL,
+    transportMode: SocketTransportMode = 'default'
+  ) {
+    if (socketRef.current && socketUrlRef.current === targetUrl && socketTransportModeRef.current === transportMode) {
       if (!socketRef.current.connected && !socketRef.current.active) {
         setIsConnecting(true);
         socketRef.current.connect();
@@ -431,11 +450,14 @@ export default function App() {
 
     const socket = io(origin, {
       autoConnect: true,
-      path
+      path,
+      transports: transportMode === 'websocket' ? ['websocket'] : ['polling', 'websocket'],
+      rememberUpgrade: true
     });
 
     socketRef.current = socket;
     socketUrlRef.current = targetUrl;
+    socketTransportModeRef.current = transportMode;
     bindSocket(socket);
     return socket;
   }
