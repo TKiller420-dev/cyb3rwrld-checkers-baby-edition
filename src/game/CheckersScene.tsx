@@ -359,9 +359,8 @@ function BoardScene({ state, localColor, selected, legalMoves, canInteract = tru
 
 export function CheckersScene(props: CheckersSceneProps) {
   return (
-    <Canvas shadows camera={{ position: [0, 12.2, 12.4], fov: 44 }}>
+    <Canvas shadows camera={{ position: [0, 8.6, 10.4], fov: 42 }}>
       <color attach="background" args={['#1c2550']} />
-      <fog attach="fog" args={['#1c2550', 10, 22]} />
       <ambientLight intensity={0.42} color="#b5c6ff" />
       <hemisphereLight intensity={1.25} color="#9fb1ff" groundColor="#3e2a47" />
       <directionalLight castShadow position={[5, 9, 6]} intensity={2.15} color="#ffd1a1" shadow-mapSize-width={2048} shadow-mapSize-height={2048} />
