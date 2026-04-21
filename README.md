@@ -1,44 +1,49 @@
 # Cyb3rWrld Checkers (Baby edition)
 
-Standalone Windows desktop client for the multiplayer checkers server.
+Desktop multiplayer checkers with a stylized 3D board, Electron packaging, and built-in auto-update support for Windows.
 
-## Default server
+## What this repo is
 
-The client starts with this server URL prefilled:
+This is the standalone client project. It connects to a separate checkers server over Socket.IO.
 
-```text
-http://217.216.40.246:4000
-```
-
-You can override it at build time with:
-
-```text
-VITE_SERVER_URL=http://your-server:4000
-```
-
-## Development
+## Quick start (development)
 
 ```powershell
 npm install
 npm run dev
 ```
 
-## Build installer
+By default, local development connects to:
+
+```text
+http://localhost:4000
+```
+
+To point the client at your deployed server, set:
+
+```text
+VITE_SERVER_URL=https://your-server.example.com
+```
+
+## Build Windows app
 
 ```powershell
 npm install
 npm run dist
 ```
 
-The Windows executable is written to:
+Portable build output goes to the `release/` folder.
 
-```text
-release/Cyb3rWrld-Checkers-Baby-Edition-0.1.2.exe
-```
+## Auto-update behavior
 
-## Notes
+- The client checks GitHub releases at startup and every 3 minutes.
+- When a newer version is found, it downloads it and prompts for restart.
+- Manual "Check updates" is available in-app for packaged builds.
 
-- This repo is fully standalone and does not depend on the original monorepo.
-- The packaging target is a portable `.exe`.
-- The client checks GitHub Releases in the source repository automatically on startup and every 3 minutes, then downloads and offers to restart into a newer build.
-- The server must already be running on your VPS for multiplayer to work.
+## Privacy and repo safety
+
+- Secrets and environment files are ignored (`.env*`, key/cert formats, `secrets/`).
+- `release-tools/` is excluded from version control.
+- Keep server-specific/private endpoints in environment variables instead of hardcoding.
+
+If you are preparing this for public GitHub visibility, verify your runtime values come from env configuration and not committed local files.

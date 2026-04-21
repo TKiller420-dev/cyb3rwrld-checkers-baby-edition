@@ -4,13 +4,11 @@ import { getLegalMoves } from './shared';
 import type { Color, Move, Position, RoomSnapshot } from './shared';
 import { CheckersScene } from './game/CheckersScene';
 
-const DEFAULT_SERVER_URL = 'https://217-216-40-246.sslip.io';
-const SERVER_URL = import.meta.env.VITE_SERVER_URL?.trim() || DEFAULT_SERVER_URL;
+const DEFAULT_SERVER_URL = import.meta.env.VITE_SERVER_URL?.trim() || 'http://localhost:4000';
+const SERVER_URL = DEFAULT_SERVER_URL;
 const FALLBACK_SERVER_URLS = [
   SERVER_URL,
-  'https://217-216-40-246.sslip.io/checkers',
-  'https://217-216-40-246.sslip.io',
-  'http://217.216.40.246:4000'
+  'http://localhost:4000'
 ].filter((value, index, all) => Boolean(value) && all.indexOf(value) === index);
 
 const STORAGE_KEYS = {
