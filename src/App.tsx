@@ -32,6 +32,7 @@ type StoredSession = {
   denName: string;
   preferredSide: SidePreference;
   forcedCaptures: boolean;
+  room?: RoomSnapshot;
 };
 
 type PendingAction =
@@ -146,7 +147,8 @@ function readStoredSession() {
       password: parsed.password ?? '',
       denName: parsed.denName ?? '',
       preferredSide,
-      forcedCaptures: typeof parsed.forcedCaptures === 'boolean' ? parsed.forcedCaptures : true
+      forcedCaptures: typeof parsed.forcedCaptures === 'boolean' ? parsed.forcedCaptures : true,
+      room: parsed.room
     };
   } catch {
     return null;
@@ -218,6 +220,10 @@ export default function App() {
   useEffect(() => {
     writeStorage(STORAGE_KEYS.forcedCaptures, String(forcedCapturesInput));
   }, [forcedCapturesInput]);
+
+  useEffect(() => {
+    writeStorage(STORAGE_KEYS.denName, denNameInput);
+  }, [denNameInput]);
 
   useEffect(() => {
     if (!room) {
@@ -295,7 +301,16 @@ export default function App() {
         setDenNameInput(persisted.denName);
         setPreferredSide(persisted.preferredSide);
         setForcedCapturesInput(persisted.forcedCaptures);
-        setMessage(`Connected. Restoring den ${persisted.roomCode}...`);
+        if (persisted.room) {
+          setRoom(persisted.room);
+          setActiveDenName(persisted.room.name ?? persisted.denName);
+          if (typeof persisted.room.rules?.forcedCaptures === 'boolean') {
+            setRoomForcedCaptures(persisted.room.rules.forcedCaptures);
+          }
+          setMessage(`Connected. Restored den ${persisted.roomCode} from local backup.`);
+        } else {
+          setMessage(`Connected. Restoring den ${persisted.roomCode}...`);
+        }
         socket.emit('room:join', {
           roomCode: persisted.roomCode,
           name: persisted.playerName,
@@ -362,7 +377,8 @@ export default function App() {
         password: roomPasswordInput,
         denName: snapshot.name ?? denNameInput,
         preferredSide,
-        forcedCaptures: nextForcedCaptures
+        forcedCaptures: nextForcedCaptures,
+        room: snapshot
       });
       setMessage(`Den ${snapshot.roomCode} is live. Waiting for a rival.`);
     });
@@ -381,7 +397,8 @@ export default function App() {
         password: roomPasswordInput,
         denName: snapshot.name ?? denNameInput,
         preferredSide,
-        forcedCaptures: nextForcedCaptures
+        forcedCaptures: nextForcedCaptures,
+        room: snapshot
       });
       setMessage(`Entered den ${snapshot.roomCode}. ${getColorLabel(snapshot.state.turn)} moves first.`);
     });
@@ -394,6 +411,16 @@ export default function App() {
       if (typeof snapshot.rules?.forcedCaptures === 'boolean') {
         setRoomForcedCaptures(snapshot.rules.forcedCaptures);
       }
+
+      persistSession({
+        roomCode: snapshot.roomCode,
+        playerName,
+        password: roomPasswordInput,
+        denName: snapshot.name ?? denNameInput,
+        preferredSide,
+        forcedCaptures: snapshot.rules?.forcedCaptures ?? activeForcedCaptures,
+        room: snapshot
+      });
 
       if (snapshot.state.winner) {
         setMessage(`${getColorLabel(snapshot.state.winner)} controls the grid.`);
@@ -514,7 +541,8 @@ export default function App() {
       password,
       denName: trimmedDenName,
       preferredSide,
-      forcedCaptures: activeForcedCaptures
+      forcedCaptures: activeForcedCaptures,
+      room
     });
 
     if (!canInteractWithServer) {
