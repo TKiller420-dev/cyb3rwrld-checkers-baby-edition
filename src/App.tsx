@@ -40,7 +40,7 @@ type PendingAction =
       type: 'create';
       payload: {
         name: string;
-        roomName?: string;
+        denName?: string;
         password?: string;
         preferredColor?: Color;
         forcedCaptures: boolean;
@@ -49,7 +49,7 @@ type PendingAction =
   | {
       type: 'join';
       payload: {
-        roomName: string;
+        denName: string;
         name: string;
         password?: string;
         preferredColor?: Color;
@@ -240,7 +240,7 @@ export default function App() {
     }
 
     if (room.state.mustContinueFrom) {
-      setSelected(room.state.mustContinueFrom);
+
       return;
     }
 
@@ -285,7 +285,7 @@ export default function App() {
           setMessage('Connected. Opening your den...');
         } else {
           socket.emit('room:join', pending.payload);
-          setMessage(`Connected. Entering den ${pending.payload.roomName}...`);
+          setMessage(`Connected. Entering den ${pending.payload.denName}...`);
         }
       }
 
@@ -320,7 +320,7 @@ export default function App() {
           setMessage(`Connected. Restoring den ${persisted.denName || persisted.roomCode || 'session'}...`);
         }
         socket.emit('room:join', {
-          roomName: persisted.denName,
+          denName: persisted.denName,
           name: persisted.playerName,
           password: persisted.password || undefined,
           preferredColor: persisted.preferredSide === 'auto' ? undefined : persisted.preferredSide
@@ -504,7 +504,7 @@ export default function App() {
 
     const createPayload = {
       name: playerName,
-      roomName: trimmedDenName,
+      denName: trimmedDenName,
       password: password || undefined,
       preferredColor: preferredSide === 'auto' ? undefined : preferredSide,
       forcedCaptures: forcedCapturesInput
@@ -541,7 +541,7 @@ export default function App() {
     }
 
     const joinPayload = {
-      roomName: trimmedDenName,
+      denName: trimmedDenName,
       name: playerName,
       password: password || undefined,
       preferredColor: preferredSide === 'auto' ? undefined : preferredSide
