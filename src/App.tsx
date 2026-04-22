@@ -26,7 +26,7 @@ const STORAGE_KEYS = {
 type SidePreference = Color | 'auto';
 
 type StoredSession = {
-  roomCode: string;
+  roomCode?: string;
   playerName: string;
   password: string;
   denName: string;
@@ -49,7 +49,7 @@ type PendingAction =
   | {
       type: 'join';
       payload: {
-        roomCode: string;
+        roomName: string;
         name: string;
         password?: string;
         preferredColor?: Color;
@@ -75,6 +75,14 @@ type JoinPayload = {
   snapshot: RoomSnapshot;
   yourColor: Color;
 };
+
+function getDenLabel(snapshot: Pick<RoomSnapshot, 'name' | 'roomCode'> | null | undefined, fallback = 'your den') {
+  if (!snapshot) {
+    return fallback;
+  }
+
+  return snapshot.name?.trim() || snapshot.roomCode || fallback;
+}
 
 function readStorage(key: string) {
   try {
@@ -135,14 +143,14 @@ function readStoredSession() {
 
   try {
     const parsed = JSON.parse(raw) as StoredSession;
-    if (!parsed.roomCode || !parsed.playerName) {
+    if (!parsed.playerName || !(parsed.denName?.trim() || parsed.roomCode?.trim())) {
       return null;
     }
 
     const preferredSide: SidePreference = parsed.preferredSide === 'red' || parsed.preferredSide === 'black' ? parsed.preferredSide : 'auto';
 
     return {
-      roomCode: parsed.roomCode.toUpperCase(),
+      roomCode: parsed.roomCode?.toUpperCase(),
       playerName: parsed.playerName,
       password: parsed.password ?? '',
       denName: parsed.denName ?? '',
@@ -277,7 +285,7 @@ export default function App() {
           setMessage('Connected. Opening your den...');
         } else {
           socket.emit('room:join', pending.payload);
-          setMessage(`Connected. Entering den ${pending.payload.roomCode}...`);
+          setMessage(`Connected. Entering den ${pending.payload.roomName}...`);
         }
       }
 
@@ -307,12 +315,12 @@ export default function App() {
           if (typeof persisted.room.rules?.forcedCaptures === 'boolean') {
             setRoomForcedCaptures(persisted.room.rules.forcedCaptures);
           }
-          setMessage(`Connected. Restored den ${persisted.roomCode} from local backup.`);
+          setMessage(`Connected. Restored den ${persisted.denName || getDenLabel(persisted.room)} from local backup.`);
         } else {
-          setMessage(`Connected. Restoring den ${persisted.roomCode}...`);
+          setMessage(`Connected. Restoring den ${persisted.denName || persisted.roomCode || 'session'}...`);
         }
         socket.emit('room:join', {
-          roomCode: persisted.roomCode,
+          roomName: persisted.denName,
           name: persisted.playerName,
           password: persisted.password || undefined,
           preferredColor: persisted.preferredSide === 'auto' ? undefined : persisted.preferredSide
@@ -380,7 +388,7 @@ export default function App() {
         forcedCaptures: nextForcedCaptures,
         room: snapshot
       });
-      setMessage(`Den ${snapshot.roomCode} is live. Waiting for a rival.`);
+      setMessage(`Den ${getDenLabel(snapshot)} is live. Waiting for a rival.`);
     });
 
     socket.on('room:joined', ({ snapshot, yourColor }: JoinPayload) => {
@@ -400,7 +408,7 @@ export default function App() {
         forcedCaptures: nextForcedCaptures,
         room: snapshot
       });
-      setMessage(`Entered den ${snapshot.roomCode}. ${getColorLabel(snapshot.state.turn)} moves first.`);
+      setMessage(`Entered den ${getDenLabel(snapshot)}. ${getColorLabel(snapshot.state.turn)} moves first.`);
     });
 
     socket.on('room:update', (snapshot: RoomSnapshot) => {
@@ -483,9 +491,20 @@ export default function App() {
   function handleCreateRoom() {
     const trimmedDenName = denNameInput.trim();
     const password = roomPasswordInput.trim();
+
+    if (!playerName.trim()) {
+      setMessage('Enter your tag first.');
+      return;
+    }
+
+    if (!trimmedDenName) {
+      setMessage('Enter a den name first.');
+      return;
+    }
+
     const createPayload = {
       name: playerName,
-      roomName: trimmedDenName || undefined,
+      roomName: trimmedDenName,
       password: password || undefined,
       preferredColor: preferredSide === 'auto' ? undefined : preferredSide,
       forcedCaptures: forcedCapturesInput
@@ -508,8 +527,39 @@ export default function App() {
   }
 
   function handleJoinRoom() {
-    // Den code no longer used; joining is handled through den name/password only
-    return;
+    const trimmedDenName = denNameInput.trim();
+    const password = roomPasswordInput.trim();
+
+    if (!playerName.trim()) {
+      setMessage('Enter your tag first.');
+      return;
+    }
+
+    if (!trimmedDenName) {
+      setMessage('Enter a den name first.');
+      return;
+    }
+
+    const joinPayload = {
+      roomName: trimmedDenName,
+      name: playerName,
+      password: password || undefined,
+      preferredColor: preferredSide === 'auto' ? undefined : preferredSide
+    };
+
+    if (!canInteractWithServer) {
+      pendingActionRef.current = {
+        type: 'join',
+        payload: joinPayload
+      };
+      hasAttemptedRestoreRef.current = true;
+      setMessage(`Reconnecting... entering den ${trimmedDenName} when the link returns.`);
+      ensureSocket();
+      return;
+    }
+
+    const socket = ensureSocket();
+    socket.emit('room:join', joinPayload);
   }
 
   function handleLeaveRoom() {
@@ -654,6 +704,7 @@ export default function App() {
             </label>
             <div className="button-row">
               <button type="button" onClick={handleCreateRoom}>Open den</button>
+              <button type="button" className="secondary" onClick={handleJoinRoom}>Join den</button>
             </div>
           </div>
         ) : null}
