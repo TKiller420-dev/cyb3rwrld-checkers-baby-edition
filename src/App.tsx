@@ -171,7 +171,6 @@ function samePosition(left: Position, right: Position) {
 
 export default function App() {
   const [playerName, setPlayerName] = useState(() => readStoredString(STORAGE_KEYS.playerName, 'Player'));
-  const [roomCodeInput, setRoomCodeInput] = useState(() => readStoredString(STORAGE_KEYS.roomCode, '').toUpperCase());
   const [denNameInput, setDenNameInput] = useState(() => readStoredString(STORAGE_KEYS.denName, ''));
   const [roomPasswordInput, setRoomPasswordInput] = useState(() => readStoredString(STORAGE_KEYS.roomPassword, ''));
   const [preferredSide, setPreferredSide] = useState<SidePreference>(() => readStoredSidePreference());
@@ -184,8 +183,7 @@ export default function App() {
   const [isConnected, setIsConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(true);
   const [isCheckingUpdates, setIsCheckingUpdates] = useState(false);
-  const [message, setMessage] = useState('Enter your tag, open a den, or join one with a room code.');
-
+  const [message, setMessage] = useState('Enter your tag and set up your den with a name and password.');
   const socketRef = useRef<Socket | null>(null);
   const socketUrlRef = useRef<string | null>(null);
   const socketTransportModeRef = useRef<SocketTransportMode>('default');
@@ -208,14 +206,6 @@ export default function App() {
   useEffect(() => {
     writeStorage(STORAGE_KEYS.playerName, playerName);
   }, [playerName]);
-
-  useEffect(() => {
-    writeStorage(STORAGE_KEYS.roomCode, roomCodeInput);
-  }, [roomCodeInput]);
-
-  useEffect(() => {
-    writeStorage(STORAGE_KEYS.denName, denNameInput);
-  }, [denNameInput]);
 
   useEffect(() => {
     writeStorage(STORAGE_KEYS.roomPassword, roomPasswordInput);
@@ -293,7 +283,7 @@ export default function App() {
       }
       setMessage((currentMessage) =>
         currentMessage === 'Connecting to the den network...' || currentMessage.startsWith('Unable to reach the den network')
-          ? 'Connected. Open a den or enter one with a code.'
+          ? 'Connected. Open your den.'
           : currentMessage
       );
 
@@ -301,7 +291,6 @@ export default function App() {
         hasAttemptedRestoreRef.current = true;
         const persisted = restoredSessionRef.current;
         setPlayerName(persisted.playerName);
-        setRoomCodeInput(persisted.roomCode);
         setRoomPasswordInput(persisted.password);
         setDenNameInput(persisted.denName);
         setPreferredSide(persisted.preferredSide);
@@ -492,43 +481,8 @@ export default function App() {
   }
 
   function handleJoinRoom() {
-    const code = roomCodeInput.trim().toUpperCase();
-    if (!code) {
-      setMessage('Enter a den code first.');
-      return;
-    }
-
-    const password = roomPasswordInput.trim();
-    const joinPayload = {
-      roomCode: code,
-      name: playerName,
-      password: password || undefined,
-      preferredColor: preferredSide === 'auto' ? undefined : preferredSide
-    };
-
-    if (!canInteractWithServer) {
-      pendingActionRef.current = {
-        type: 'join',
-        payload: joinPayload
-      };
-      hasAttemptedRestoreRef.current = true;
-      setMessage(`Reconnecting... joining den ${code} when the link returns.`);
-      ensureSocket();
-      return;
-    }
-
-    const sessionForRestore: StoredSession = {
-      roomCode: code,
-      playerName,
-      password,
-      denName: denNameInput,
-      preferredSide,
-      forcedCaptures: forcedCapturesInput
-    };
-    persistSession(sessionForRestore);
-
-    const socket = ensureSocket();
-    socket.emit('room:join', joinPayload);
+    // Den code no longer used; joining is handled through den name/password only
+    return;
   }
 
   function handleLeaveRoom() {
@@ -655,10 +609,6 @@ export default function App() {
               <input value={denNameInput} onChange={(event) => setDenNameInput(event.target.value)} maxLength={36} placeholder="My cozy den" />
             </label>
             <label>
-              <span className="label">Den code</span>
-              <input value={roomCodeInput} onChange={(event) => setRoomCodeInput(event.target.value.toUpperCase())} maxLength={5} placeholder="ABCDE" />
-            </label>
-            <label>
               <span className="label">Password</span>
               <input type="password" value={roomPasswordInput} onChange={(event) => setRoomPasswordInput(event.target.value)} maxLength={32} placeholder="Optional" />
             </label>
@@ -676,7 +626,6 @@ export default function App() {
             </label>
             <div className="button-row">
               <button type="button" onClick={handleCreateRoom}>Open den</button>
-              <button type="button" className="secondary" onClick={handleJoinRoom}>Enter den</button>
             </div>
           </div>
         ) : null}
@@ -701,26 +650,6 @@ export default function App() {
           <div className="status-row">
             <span className="label">Side</span>
             <strong>{getColorLabel(playerColor)}</strong>
-          </div>
-          <div className="status-row">
-            <span className="label">Den</span>
-            <strong>{room?.roomCode ?? '—'}</strong>
-          </div>
-          <div className="status-row">
-            <span className="label">Den name</span>
-            <strong>{activeDenName ?? room?.name ?? '—'}</strong>
-          </div>
-          <div className="status-row">
-            <span className="label">Password</span>
-            <strong>{room?.hasPassword || roomPasswordInput ? 'protected' : 'open'}</strong>
-          </div>
-          <div className="status-row">
-            <span className="label">Violet</span>
-            <strong>{room?.players.red ?? 'Open'}</strong>
-          </div>
-          <div className="status-row">
-            <span className="label">Azure</span>
-            <strong>{room?.players.black ?? 'Open'}</strong>
           </div>
           <div className="status-row">
             <span className="label">Turn</span>
