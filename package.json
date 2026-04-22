@@ -11,7 +11,7 @@
     "dev": "vite",
     "build": "npx tsc -p tsconfig.json && vite build",
     "dist": "npm run build && electron-builder --win portable",
-    "release": "node release-tools/release.mjs"
+    "release": "dotnet run --project release-tools/ReleaseManager/ReleaseManager.csproj"
   },
   "dependencies": {
     "@react-three/drei": "^9.122.0",
