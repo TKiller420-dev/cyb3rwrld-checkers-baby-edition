@@ -3,6 +3,7 @@ dist/
 dist-electron/
 release/
 release-build/
+release-build-auto/
 release-tools/
 *.log
 .DS_Store
