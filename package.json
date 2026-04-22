@@ -40,7 +40,7 @@
     "appId": "com.tris.checkers3d",
     "productName": "Cyb3rWrld Checkers (Baby edition)",
     "directories": {
-      "output": "release"
+      "output": "release-build"
     },
     "files": [
       "dist/**",

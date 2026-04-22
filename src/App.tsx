@@ -545,6 +545,37 @@ export default function App() {
     socketRef.current?.emit('game:restart');
   }
 
+  function handleUpdateDenSettings() {
+    if (!room) {
+      return;
+    }
+
+    const trimmedDenName = denNameInput.trim();
+    const password = roomPasswordInput.trim();
+
+    setActiveDenName(trimmedDenName || null);
+    persistSession({
+      roomCode: room.roomCode,
+      playerName,
+      password,
+      denName: trimmedDenName,
+      preferredSide,
+      forcedCaptures: activeForcedCaptures
+    });
+
+    if (!canInteractWithServer) {
+      setMessage('Saved locally. Den settings will sync once reconnected.');
+      return;
+    }
+
+    socketRef.current?.emit('room:update-settings', {
+      roomCode: room.roomCode,
+      roomName: trimmedDenName || undefined,
+      password: password || undefined
+    });
+    setMessage('Sent den settings update.');
+  }
+
   async function handleCheckForUpdates() {
     if (!window.checkersApi?.checkForUpdates) {
       setMessage('Manual update checks are available in the packaged desktop build.');
@@ -646,6 +677,22 @@ export default function App() {
             <div className="button-row">
               <button type="button" onClick={handleCreateRoom}>Open den</button>
               <button type="button" className="secondary" onClick={handleJoinRoom}>Enter den</button>
+            </div>
+          </div>
+        ) : null}
+
+        {room ? (
+          <div className="card form-card">
+            <label>
+              <span className="label">Den name</span>
+              <input value={denNameInput} onChange={(event) => setDenNameInput(event.target.value)} maxLength={36} placeholder="My cozy den" />
+            </label>
+            <label>
+              <span className="label">Password</span>
+              <input type="password" value={roomPasswordInput} onChange={(event) => setRoomPasswordInput(event.target.value)} maxLength={32} placeholder="Optional" />
+            </label>
+            <div className="button-row">
+              <button type="button" onClick={handleUpdateDenSettings}>Update den</button>
             </div>
           </div>
         ) : null}
